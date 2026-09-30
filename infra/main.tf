@@ -2,6 +2,10 @@ data "oci_objectstorage_namespace" "current" {
   compartment_id = var.compartment_ocid
 }
 
+data "oci_core_subnet" "search" {
+  subnet_id = var.subnet_ocid
+}
+
 locals {
   search_nodes = {
     for index in range(var.search_service_count) : tostring(index) => index
@@ -29,6 +33,13 @@ resource "oci_core_network_security_group" "search" {
   compartment_id = var.compartment_ocid
   display_name   = "${var.deployment_name}-search"
   freeform_tags  = local.tags
+
+  lifecycle {
+    precondition {
+      condition     = data.oci_core_subnet.search.vcn_id == var.vcn_ocid
+      error_message = "subnet_ocid must belong to vcn_ocid."
+    }
+  }
 }
 
 resource "oci_core_network_security_group" "load_balancer" {

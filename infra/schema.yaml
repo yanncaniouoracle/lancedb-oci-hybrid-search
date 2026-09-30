@@ -46,6 +46,7 @@ variableGroups:
       - ${ssh_public_key}
   - title: Existing network
     variables:
+      - ${vcn_ocid}
       - ${subnet_ocid}
       - ${allowed_client_cidrs}
       - ${enable_private_load_balancer}
@@ -100,6 +101,12 @@ variables:
   ssh_public_key:
     type: oci:core:ssh:publickey
     title: Public SSH key
+    required: true
+  vcn_ocid:
+    type: oci:core:vcn:id
+    title: Existing VCN
+    dependsOn:
+      compartmentId: ${compartment_ocid}
     required: true
   subnet_ocid:
     type: oci:core:subnet:id

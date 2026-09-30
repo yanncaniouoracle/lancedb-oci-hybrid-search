@@ -29,6 +29,11 @@ variable "subnet_ocid" {
   type        = string
 }
 
+variable "vcn_ocid" {
+  description = "Existing VCN containing subnet_ocid. The stack verifies that the supplied subnet belongs to this VCN."
+  type        = string
+}
+
 variable "ssh_public_key" {
   description = "SSH public key for emergency administration. Prefer Bastion for normal access."
   type        = string
