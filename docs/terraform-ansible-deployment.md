@@ -43,6 +43,8 @@ terraform output -raw ansible_inventory > ../ansible/inventory/hosts.ini
 ```
 
 For Resource Manager, upload the `infra/` directory as the stack. `schema.yaml` provides its required input form. It expects an existing private subnet rather than recreating the GPU-cluster network.
+Select Terraform **1.5.x** for the Resource Manager stack; the configuration is
+pinned to that ORM-supported release line.
 
 For an initial single-node feasibility deployment, use one 500 GB Balanced volume and `hot_tier_vpus_per_gb = 10`. A larger node-local hot tier can use several 500 GB volumes striped through LVM. This is a practical high-IOPS standardization choice; exact volume count, instance attachment capacity, and the service's query concurrency must be benchmarked together.
 
