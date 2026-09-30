@@ -1,0 +1,229 @@
+---
+title: LanceDB OCI Search Service
+description: >-
+  Private LanceDB search service with direct Block Volume hot tier and Object
+  Storage source of truth
+schemaVersion: 1.1.0
+version: "1.0"
+informationalText: >-
+  Deploy independently from the GPU or Slurm cluster. The service uses an
+  instance principal for Object Storage and exposes only a private query
+  endpoint.
+
+outputGroups:
+  - title: Search service
+    outputs:
+      - search_service_endpoint
+      - search_service_private_ips
+      - object_storage_location
+      - ansible_inventory
+
+outputs:
+  search_service_endpoint:
+    title: Private search endpoint
+    type: copyableString
+    visible: true
+  search_service_private_ips:
+    title: Search-service private IPs
+    type: copyableString
+    visible: true
+  object_storage_location:
+    title: Object Storage payload location
+    type: copyableString
+    visible: true
+  ansible_inventory:
+    title: Generated Ansible inventory
+    type: copyableString
+    visible: true
+
+variableGroups:
+  - title: General
+    variables:
+      - ${compartment_ocid}
+      - ${region}
+      - ${availability_domain}
+      - ${deployment_name}
+      - ${ssh_public_key}
+  - title: Existing network
+    variables:
+      - ${subnet_ocid}
+      - ${allowed_client_cidrs}
+      - ${enable_private_load_balancer}
+      - ${load_balancer_min_bandwidth_mbps}
+      - ${load_balancer_max_bandwidth_mbps}
+  - title: Search-service compute
+    variables:
+      - ${search_image_ocid}
+      - ${search_shape}
+      - ${search_ocpus}
+      - ${search_memory_gb}
+      - ${search_service_count}
+      - ${boot_volume_size_gb}
+      - ${service_port}
+  - title: Block Volume hot tier
+    variables:
+      - ${hot_tier_volume_count}
+      - ${hot_tier_volume_size_gb}
+      - ${hot_tier_vpus_per_gb}
+  - title: Object Storage
+    variables:
+      - ${object_storage_bucket_name}
+      - ${create_object_storage_bucket}
+      - ${object_storage_namespace}
+      - ${object_storage_prefix}
+  - title: Instance principal access
+    variables:
+      - ${create_instance_principal_policy}
+      - ${dynamic_group_name}
+
+variables:
+  compartment_ocid:
+    type: oci:identity:compartment:id
+    title: Search-service compartment
+    required: true
+  region:
+    type: string
+    title: OCI region
+    required: true
+  availability_domain:
+    type: oci:identity:availabilitydomain:name
+    title: Availability Domain
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    required: true
+  deployment_name:
+    type: string
+    title: Deployment name
+    pattern: "^[a-z][a-z0-9-]{0,30}$"
+    default: lancedb-search
+    required: true
+  ssh_public_key:
+    type: oci:core:ssh:publickey
+    title: Public SSH key
+    required: true
+  subnet_ocid:
+    type: oci:core:subnet:id
+    title: Existing private subnet
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    required: true
+  allowed_client_cidrs:
+    type: string
+    title: GPU or application CIDRs
+    description: >-
+      Comma-separated CIDRs allowed to call the private search endpoint.
+    required: true
+  enable_private_load_balancer:
+    type: boolean
+    title: Create private load balancer
+    default: false
+  load_balancer_min_bandwidth_mbps:
+    type: integer
+    title: Load-balancer minimum bandwidth Mbps
+    default: 10
+    visible: ${enable_private_load_balancer}
+  load_balancer_max_bandwidth_mbps:
+    type: integer
+    title: Load-balancer maximum bandwidth Mbps
+    default: 100
+    visible: ${enable_private_load_balancer}
+  search_image_ocid:
+    type: oci:core:image:id
+    title: Search-service image
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    required: true
+  search_shape:
+    type: oci:core:instanceshape:name
+    title: Search-service shape
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    default: VM.Standard.E5.Flex
+    required: true
+  search_ocpus:
+    type: integer
+    title: OCPUs per service node
+    minimum: 1
+    default: 8
+    required: true
+  search_memory_gb:
+    type: integer
+    title: Memory GB per service node
+    minimum: 1
+    default: 64
+    required: true
+  search_service_count:
+    type: integer
+    title: Search-service nodes
+    description: >-
+      Each node owns a local hot tier. Scale read capacity with explicit shards
+      or replicas.
+    minimum: 1
+    default: 1
+    required: true
+  boot_volume_size_gb:
+    type: integer
+    title: Boot volume size GB
+    minimum: 50
+    default: 100
+    required: true
+  service_port:
+    type: integer
+    title: Private search-service port
+    minimum: 1
+    maximum: 65535
+    default: 8080
+    required: true
+  hot_tier_volume_count:
+    type: integer
+    title: Balanced volumes per service node
+    description: >-
+      Directly attached, non-shareable volumes configured by Ansible as an LVM
+      stripe set.
+    minimum: 1
+    default: 1
+    required: true
+  hot_tier_volume_size_gb:
+    type: integer
+    title: Volume brick size GB
+    description: >-
+      500 GB reaches the Balanced 25,000 IOPS per-volume cap and is a practical
+      standard brick size.
+    minimum: 50
+    default: 500
+    required: true
+  hot_tier_vpus_per_gb:
+    type: integer
+    title: Block Volume VPUs per GB
+    description: Use 10 for Balanced performance.
+    default: 10
+    required: true
+  object_storage_bucket_name:
+    type: string
+    title: Raw-payload bucket
+    required: true
+  create_object_storage_bucket:
+    type: boolean
+    title: Create the raw-payload bucket
+    default: false
+  object_storage_namespace:
+    type: string
+    title: Object Storage namespace override
+    description: Leave empty to discover the tenancy namespace.
+    default: ""
+  object_storage_prefix:
+    type: string
+    title: Raw-payload prefix
+    default: ""
+  create_instance_principal_policy:
+    type: boolean
+    title: Create read-only Object Storage policy
+    description: >-
+      Requires an existing, narrowly scoped dynamic group containing the service
+      instances.
+    default: false
+  dynamic_group_name:
+    type: string
+    title: Existing dynamic-group name
+    visible: ${create_instance_principal_policy}
+    required: true

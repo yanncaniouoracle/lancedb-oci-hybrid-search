@@ -1,0 +1,7 @@
+---
+- name: Configure OCI LanceDB search-service nodes
+  hosts: lancedb_search
+  become: true
+  gather_facts: true
+  roles:
+    - lancedb_search

@@ -1,0 +1,231 @@
+---
+- name: Validate required search-service configuration
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.os_family == 'Debian'
+      - lancedb_block_devices | length > 0
+      - lancedb_service_git_url | length > 0
+      - lancedb_table_name | length > 0
+      - lancedb_oci_bucket | length > 0
+    fail_msg: >-
+      This role requires Ubuntu/Debian, explicit attached-device paths, a Git
+      URL, a table name, and the raw-payload bucket. Do not infer device paths.
+
+- name: Install operating-system dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+      - lvm2
+      - python3-pip
+      - python3-venv
+      - xfsprogs
+    state: present
+    update_cache: true
+
+- name: Verify declared Block Volume devices are present
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ lancedb_block_devices }}"
+  register: lancedb_block_device_status
+
+- name: Refuse to create storage on a missing device
+  ansible.builtin.assert:
+    that: item.stat.exists and item.stat.isblk
+    fail_msg: >-
+      Declared hot-tier device {{ item.item }} is missing or is not a block
+      device.
+  loop: "{{ lancedb_block_device_status.results }}"
+
+- name: Check whether each device is already an LVM physical volume
+  ansible.builtin.command:
+    cmd: "pvs --noheadings {{ item }}"
+  loop: "{{ lancedb_block_devices }}"
+  register: lancedb_pv_status
+  changed_when: false
+  failed_when: false
+
+- name: Check for an existing non-LVM filesystem on declared devices
+  ansible.builtin.command:
+    cmd: "lsblk --noheadings --output FSTYPE {{ item }}"
+  loop: "{{ lancedb_block_devices }}"
+  register: lancedb_device_filesystem_status
+  changed_when: false
+
+- name: Refuse to overwrite a non-LVM filesystem
+  ansible.builtin.assert:
+    that: >-
+      item.stdout | trim == '' or
+      lancedb_pv_status.results[ansible_loop.index0].rc == 0
+    fail_msg: >-
+      Declared hot-tier device {{ item.item }} already contains a filesystem.
+      Choose a new empty Block Volume instead of overwriting data.
+  loop: "{{ lancedb_device_filesystem_status.results }}"
+  loop_control:
+    extended: true
+
+- name: Initialize declared devices as LVM physical volumes
+  ansible.builtin.command:
+    cmd: "pvcreate -y {{ item.item }}"
+  loop: "{{ lancedb_pv_status.results }}"
+  when: item.rc != 0
+
+- name: Check whether the hot-tier volume group exists
+  ansible.builtin.command:
+    cmd: "vgs --noheadings {{ lancedb_volume_group }}"
+  register: lancedb_vg_status
+  changed_when: false
+  failed_when: false
+
+- name: Create the hot-tier volume group
+  ansible.builtin.command:
+    argv: "{{ ['vgcreate', lancedb_volume_group] + lancedb_block_devices }}"
+  when: lancedb_vg_status.rc != 0
+
+- name: Check whether the striped hot-tier logical volume exists
+  ansible.builtin.command:
+    cmd: >-
+      lvs --noheadings
+      /dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }}
+  register: lancedb_lv_status
+  changed_when: false
+  failed_when: false
+
+- name: Create a striped hot-tier logical volume
+  ansible.builtin.command:
+    argv:
+      - lvcreate
+      - --stripes
+      - "{{ lancedb_block_devices | length }}"
+      - --stripesize
+      - "{{ lancedb_lvm_stripe_size_kb }}"
+      - --extents
+      - 100%FREE
+      - --name
+      - "{{ lancedb_logical_volume }}"
+      - "{{ lancedb_volume_group }}"
+  when: lancedb_lv_status.rc != 0
+
+- name: Check the hot-tier logical-volume filesystem
+  ansible.builtin.command:
+    cmd: >-
+      blkid -s TYPE -o value
+      /dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }}
+  register: lancedb_filesystem_status
+  changed_when: false
+  failed_when: false
+
+- name: Refuse to replace a non-XFS logical-volume filesystem
+  ansible.builtin.assert:
+    that: >-
+      lancedb_filesystem_status.stdout | trim == '' or
+      lancedb_filesystem_status.stdout | trim == 'xfs'
+    fail_msg: >-
+      /dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }} already has
+      a non-XFS filesystem. Migration must be performed separately.
+
+- name: Format the logical volume as XFS
+  ansible.builtin.command:
+    cmd: >-
+      mkfs.xfs -f
+      /dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }}
+  when: lancedb_filesystem_status.stdout | trim == ''
+
+- name: Create the LanceDB mount path
+  ansible.builtin.file:
+    path: "{{ lancedb_mount_path }}"
+    state: directory
+    owner: "{{ lancedb_service_user }}"
+    group: "{{ lancedb_service_group }}"
+    mode: '0755'
+
+- name: Persist the hot-tier XFS mount
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^/dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }}\\s+"
+    line: >-
+      /dev/{{ lancedb_volume_group }}/{{ lancedb_logical_volume }}
+      {{ lancedb_mount_path }} xfs defaults,noatime 0 2
+
+- name: Check whether the hot tier is mounted
+  ansible.builtin.command:
+    cmd: "findmnt --noheadings --target {{ lancedb_mount_path }}"
+  register: lancedb_mount_status
+  changed_when: false
+  failed_when: false
+
+- name: Mount the hot tier
+  ansible.builtin.command:
+    cmd: "mount {{ lancedb_mount_path }}"
+  when: lancedb_mount_status.rc != 0
+
+- name: Create the service installation directory
+  ansible.builtin.file:
+    path: "{{ lancedb_install_path }}"
+    state: directory
+    owner: "{{ lancedb_service_user }}"
+    group: "{{ lancedb_service_group }}"
+    mode: '0755'
+
+- name: Fetch the versioned search-service source
+  ansible.builtin.git:
+    repo: "{{ lancedb_service_git_url }}"
+    dest: "{{ lancedb_install_path }}"
+    version: "{{ lancedb_service_git_version }}"
+    force: false
+  become_user: "{{ lancedb_service_user }}"
+  notify: Restart LanceDB search service
+
+- name: Install the search-service Python environment
+  ansible.builtin.pip:
+    name: ".[service]"
+    chdir: "{{ lancedb_install_path }}"
+    virtualenv: "{{ lancedb_virtualenv_path }}"
+    virtualenv_command: python3 -m venv
+    extra_args: --upgrade
+  become_user: "{{ lancedb_service_user }}"
+  notify: Restart LanceDB search service
+
+- name: Create the service configuration directory
+  ansible.builtin.file:
+    path: /etc/lancedb-search
+    state: directory
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0750'
+
+- name: Render search-service environment
+  ansible.builtin.template:
+    src: lancedb.env.j2
+    dest: /etc/lancedb-search/lancedb.env
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0640'
+  notify: Restart LanceDB search service
+
+- name: Install the systemd service
+  ansible.builtin.template:
+    src: lancedb-search.service.j2
+    dest: /etc/systemd/system/lancedb-search.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart LanceDB search service
+
+- name: Enable the search service
+  ansible.builtin.systemd_service:
+    name: lancedb-search.service
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Run a workload-specific ingestion command when explicitly requested
+  ansible.builtin.command:
+    cmd: "{{ lancedb_initial_ingest_command }}"
+    chdir: "{{ lancedb_install_path }}"
+  become_user: "{{ lancedb_service_user }}"
+  when: lancedb_initial_ingest_command | length > 0
+  changed_when: true

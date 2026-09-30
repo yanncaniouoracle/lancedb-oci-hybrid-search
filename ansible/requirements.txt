@@ -1,0 +1,2 @@
+# The application is installed from pyproject.toml on the target host.
+# This file intentionally contains only automation-side guidance.

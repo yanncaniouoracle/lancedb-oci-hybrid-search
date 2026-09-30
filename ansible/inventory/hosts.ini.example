@@ -1,0 +1,5 @@
+[lancedb_search]
+lancedb-search-0 ansible_host=10.0.0.49
+
+[lancedb_search:vars]
+ansible_user=ubuntu

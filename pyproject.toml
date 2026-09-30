@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oci-lancedb-hybrid"
+version = "0.1.0"
+description = "OCI Object Storage plus Block Volume LanceDB search service"
+requires-python = ">=3.10"
+dependencies = [
+  "boto3>=1.43",
+  "numpy>=2.0",
+  "oci>=2.187",
+]
+
+[project.optional-dependencies]
+service = ["fastapi>=0.115", "lancedb>=0.39", "uvicorn[standard]>=0.30"]
+mnist = ["lancedb>=0.39", "pillow>=10", "pyarrow>=18"]
+
+[project.scripts]
+oci-lancedb-ingest-mnist = "oci_lancedb_hybrid.ingest_mnist:main"
+oci-lancedb-validate = "oci_lancedb_hybrid.validate:main"
+oci-lancedb-search = "oci_lancedb_hybrid.service:run"
+
+[tool.setuptools.packages.find]
+where = ["src"]

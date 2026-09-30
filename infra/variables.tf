@@ -1,0 +1,170 @@
+variable "region" {
+  description = "OCI region in which to create the search tier."
+  type        = string
+}
+
+variable "compartment_ocid" {
+  description = "Compartment that owns the search instances, volumes, and bucket."
+  type        = string
+}
+
+variable "availability_domain" {
+  description = "Availability Domain for search instances and Block Volumes."
+  type        = string
+}
+
+variable "deployment_name" {
+  description = "Lower-case deployment identifier used in resource names and tags."
+  type        = string
+  default     = "lancedb-search"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{0,30}$", var.deployment_name))
+    error_message = "deployment_name must start with a lower-case letter and contain only lower-case letters, digits, and hyphens."
+  }
+}
+
+variable "subnet_ocid" {
+  description = "Existing private subnet for search-service instances and, if enabled, the private load balancer."
+  type        = string
+}
+
+variable "ssh_public_key" {
+  description = "SSH public key for emergency administration. Prefer Bastion for normal access."
+  type        = string
+}
+
+variable "search_image_ocid" {
+  description = "Ubuntu or Oracle Linux image OCID for search-service instances."
+  type        = string
+}
+
+variable "search_shape" {
+  description = "Compute shape for search-service instances."
+  type        = string
+  default     = "VM.Standard.E5.Flex"
+}
+
+variable "search_ocpus" {
+  description = "OCPUs per search-service instance when using a flexible shape."
+  type        = number
+  default     = 8
+}
+
+variable "search_memory_gb" {
+  description = "Memory in GB per search-service instance when using a flexible shape."
+  type        = number
+  default     = 64
+}
+
+variable "search_service_count" {
+  description = "Number of search-service nodes. Each node owns its own directly attached hot tier."
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.search_service_count >= 1
+    error_message = "search_service_count must be at least one."
+  }
+}
+
+variable "boot_volume_size_gb" {
+  description = "Boot-volume size in GB for each search node."
+  type        = number
+  default     = 100
+}
+
+variable "service_port" {
+  description = "Private TCP port exposed by the search service."
+  type        = number
+  default     = 8080
+}
+
+variable "allowed_client_cidrs" {
+  description = "CIDR blocks for GPU or application nodes allowed to call the private search endpoint."
+  type        = string
+}
+
+variable "enable_private_load_balancer" {
+  description = "Create a private OCI Load Balancer in front of all search nodes."
+  type        = bool
+  default     = false
+}
+
+variable "load_balancer_min_bandwidth_mbps" {
+  description = "Minimum private load-balancer bandwidth in Mbps."
+  type        = number
+  default     = 10
+}
+
+variable "load_balancer_max_bandwidth_mbps" {
+  description = "Maximum private load-balancer bandwidth in Mbps."
+  type        = number
+  default     = 100
+}
+
+variable "hot_tier_volume_count" {
+  description = "Directly attached Block Volumes per search node. LVM stripes these volumes on each node."
+  type        = number
+  default     = 1
+}
+
+variable "hot_tier_volume_size_gb" {
+  description = "Size in GB of each hot-tier Block Volume. 500 GB is a practical Balanced high-IOPS brick size."
+  type        = number
+  default     = 500
+}
+
+variable "hot_tier_vpus_per_gb" {
+  description = "Block Volume performance setting. Use 10 for Balanced performance."
+  type        = number
+  default     = 10
+
+  validation {
+    condition     = contains([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120], var.hot_tier_vpus_per_gb)
+    error_message = "hot_tier_vpus_per_gb must be a supported OCI VPU value."
+  }
+}
+
+variable "object_storage_bucket_name" {
+  description = "Existing or new bucket containing raw payloads and optional hot-tier exports."
+  type        = string
+}
+
+variable "create_object_storage_bucket" {
+  description = "Create object_storage_bucket_name. Set false when it already exists."
+  type        = bool
+  default     = false
+}
+
+variable "object_storage_namespace" {
+  description = "Optional Object Storage namespace. Leave null to discover the tenancy namespace."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "object_storage_prefix" {
+  description = "Prefix for raw objects referenced by the hot table."
+  type        = string
+  default     = ""
+}
+
+variable "create_instance_principal_policy" {
+  description = "Create read-only Object Storage policies for an existing dynamic group."
+  type        = bool
+  default     = false
+}
+
+variable "dynamic_group_name" {
+  description = "Existing dynamic-group name containing the search instances. The stack deliberately does not create a broad dynamic-group rule."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "common_freeform_tags" {
+  description = "Free-form tags applied to created resources."
+  type        = map(string)
+  default     = {}
+}

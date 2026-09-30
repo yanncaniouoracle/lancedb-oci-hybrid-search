@@ -1,0 +1,19 @@
+[Unit]
+Description=OCI LanceDB hybrid search service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/oci-lancedb-hybrid
+EnvironmentFile=/etc/lancedb-search/lancedb.env
+ExecStart=/opt/oci-lancedb-hybrid/.venv/bin/oci-lancedb-search
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

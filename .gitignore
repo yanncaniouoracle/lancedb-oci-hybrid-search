@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+*.log
+data/
+*.lance/
+
+# Terraform and deployment-local configuration
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfstate
+infra/*.tfstate.*
+infra/terraform.tfvars
+infra/terraform.tfvars.json
+ansible/inventory/hosts.ini
+ansible/group_vars/lancedb_search.yml

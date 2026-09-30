@@ -1,0 +1,22 @@
+---
+lancedb_block_devices: []
+lancedb_volume_group: lancedb_hot
+lancedb_logical_volume: data
+lancedb_mount_path: /mnt/lancedb-hot
+lancedb_lvm_stripe_size_kb: 256
+
+lancedb_service_git_url: ""
+lancedb_service_git_version: main
+lancedb_install_path: /opt/oci-lancedb-hybrid
+lancedb_service_user: ubuntu
+lancedb_service_group: ubuntu
+lancedb_virtualenv_path: "{{ lancedb_install_path }}/.venv"
+
+lancedb_database_path: "{{ lancedb_mount_path }}/lancedb-hot"
+lancedb_table_name: ""
+lancedb_vector_dimensions: 768
+lancedb_bind_host: 0.0.0.0
+lancedb_service_port: 8080
+lancedb_oci_bucket: ""
+lancedb_oci_auth: instance_principal
+lancedb_initial_ingest_command: ""
