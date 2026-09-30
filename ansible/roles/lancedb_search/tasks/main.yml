@@ -219,7 +219,9 @@
   ansible.builtin.systemd_service:
     name: lancedb-search.service
     enabled: true
-    state: started
+    # A fresh table may be created by the explicit ingestion command below.
+    # Do not attempt to start FastAPI before that table exists.
+    state: "{{ 'stopped' if lancedb_initial_ingest_command | length > 0 else 'started' }}"
     daemon_reload: true
 
 - name: Run a workload-specific ingestion command when explicitly requested
@@ -229,3 +231,9 @@
   become_user: "{{ lancedb_service_user }}"
   when: lancedb_initial_ingest_command | length > 0
   changed_when: true
+
+- name: Start the search service after initial ingestion
+  ansible.builtin.systemd_service:
+    name: lancedb-search.service
+    state: started
+  when: lancedb_initial_ingest_command | length > 0
