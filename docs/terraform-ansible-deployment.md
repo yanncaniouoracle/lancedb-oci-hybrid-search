@@ -46,6 +46,8 @@ For Resource Manager, upload the `infra/` directory as the stack. `schema.yaml` 
 The form first lists VCNs from the selected network compartment, then lists only
 private subnets from the selected VCN. The VCN picker displays names but passes
 the selected OCID to Terraform as `vcn_id`.
+Select the separate GPU/application private subnet as well; its CIDR block is
+read by Terraform and used as the search-service ingress source automatically.
 Select Terraform **1.5.x** for the Resource Manager stack; the configuration is
 pinned to that ORM-supported release line.
 

@@ -49,7 +49,7 @@ variableGroups:
       - ${network_compartment_ocid}
       - ${vcn_id}
       - ${subnet_ocid}
-      - ${allowed_client_cidrs}
+      - ${gpu_subnet_id}
       - ${enable_private_load_balancer}
       - ${load_balancer_min_bandwidth_mbps}
       - ${load_balancer_max_bandwidth_mbps}
@@ -125,11 +125,15 @@ variables:
       vcnId: ${vcn_id}
       hidePublicSubnet: true
     required: true
-  allowed_client_cidrs:
-    type: string
-    title: GPU or application CIDRs
+  gpu_subnet_id:
+    type: oci:core:subnet:id
+    title: GPU or application private subnet
     description: >-
-      Comma-separated CIDRs allowed to call the private search endpoint.
+      Its CIDR block is automatically used for ingress to the search endpoint.
+    dependsOn:
+      compartmentId: ${network_compartment_ocid}
+      vcnId: ${vcn_id}
+      hidePublicSubnet: true
     required: true
   enable_private_load_balancer:
     type: boolean

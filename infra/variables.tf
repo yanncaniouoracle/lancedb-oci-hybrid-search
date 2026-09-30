@@ -92,8 +92,8 @@ variable "service_port" {
   default     = 8080
 }
 
-variable "allowed_client_cidrs" {
-  description = "CIDR blocks for GPU or application nodes allowed to call the private search endpoint."
+variable "gpu_subnet_id" {
+  description = "Private subnet containing GPU or application nodes allowed to call the search endpoint."
   type        = string
 }
 

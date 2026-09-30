@@ -6,6 +6,10 @@ data "oci_core_subnet" "search" {
   subnet_id = var.subnet_ocid
 }
 
+data "oci_core_subnet" "gpu_clients" {
+  subnet_id = var.gpu_subnet_id
+}
+
 data "oci_core_vcn" "search" {
   vcn_id = var.vcn_id
 }
@@ -23,26 +27,27 @@ locals {
     }
   }
 
-  namespace = coalesce(
-    nullif(trimspace(coalesce(var.object_storage_namespace, "")), ""),
-    data.oci_objectstorage_namespace.current.namespace,
-  )
+  namespace_input = trimspace(coalesce(var.object_storage_namespace, ""))
+  namespace = local.namespace_input != "" ? local.namespace_input : data.oci_objectstorage_namespace.current.namespace
   network_compartment_ocid = coalesce(var.network_compartment_ocid, var.compartment_ocid)
   tags                     = merge(var.common_freeform_tags, { "lancedb-search-service" = var.deployment_name })
-  allowed_client_cidrs = toset(compact([
-    for cidr in split(",", var.allowed_client_cidrs) : trimspace(cidr)
-  ]))
+  gpu_client_cidrs = toset([data.oci_core_subnet.gpu_clients.cidr_block])
 }
 
 resource "oci_core_network_security_group" "search" {
   compartment_id = var.compartment_ocid
   display_name   = "${var.deployment_name}-search"
   freeform_tags  = local.tags
+  vcn_id         = var.vcn_id
 
   lifecycle {
     precondition {
       condition     = data.oci_core_subnet.search.vcn_id == var.vcn_id
       error_message = "subnet_ocid must belong to vcn_id."
+    }
+    precondition {
+      condition     = data.oci_core_subnet.gpu_clients.vcn_id == var.vcn_id
+      error_message = "gpu_subnet_id must belong to vcn_id."
     }
     precondition {
       condition     = data.oci_core_vcn.search.compartment_id == local.network_compartment_ocid
@@ -56,6 +61,7 @@ resource "oci_core_network_security_group" "load_balancer" {
   compartment_id = var.compartment_ocid
   display_name   = "${var.deployment_name}-lb"
   freeform_tags  = local.tags
+  vcn_id         = var.vcn_id
 }
 
 resource "oci_core_network_security_group_security_rule" "search_egress" {
@@ -67,7 +73,7 @@ resource "oci_core_network_security_group_security_rule" "search_egress" {
 }
 
 resource "oci_core_network_security_group_security_rule" "direct_client_ingress" {
-  for_each                  = var.enable_private_load_balancer ? toset([]) : local.allowed_client_cidrs
+  for_each                  = var.enable_private_load_balancer ? toset([]) : local.gpu_client_cidrs
   network_security_group_id = oci_core_network_security_group.search.id
   direction                 = "INGRESS"
   protocol                  = "6"
@@ -97,7 +103,7 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_to_searc
 }
 
 resource "oci_core_network_security_group_security_rule" "client_to_load_balancer" {
-  for_each                  = var.enable_private_load_balancer ? local.allowed_client_cidrs : toset([])
+  for_each                  = var.enable_private_load_balancer ? local.gpu_client_cidrs : toset([])
   network_security_group_id = oci_core_network_security_group.load_balancer[0].id
   direction                 = "INGRESS"
   protocol                  = "6"

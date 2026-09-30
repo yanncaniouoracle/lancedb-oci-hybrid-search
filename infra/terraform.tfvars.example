@@ -6,11 +6,9 @@ deployment_name     = "lancedb-search"
 network_compartment_ocid = "ocid1.compartment.oc1..network-example"
 vcn_id              = "ocid1.vcn.oc1.iad.example"
 subnet_ocid         = "ocid1.subnet.oc1.iad.example"
+gpu_subnet_id       = "ocid1.subnet.oc1.iad.gpu-example"
 ssh_public_key      = "ssh-ed25519 AAAA..."
 search_image_ocid   = "ocid1.image.oc1.iad.example"
-
-# Permit only GPU/application subnets, not 0.0.0.0/0.
-allowed_client_cidrs = "10.0.0.0/24"
 
 search_shape         = "VM.Standard.E5.Flex"
 search_ocpus         = 8
