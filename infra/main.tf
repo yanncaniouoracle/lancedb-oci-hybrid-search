@@ -210,6 +210,10 @@ resource "oci_load_balancer_load_balancer" "search" {
   subnet_ids     = [var.subnet_ocid]
   shape          = "flexible"
   freeform_tags  = local.tags
+  # The search-node ingress rule authorizes this NSG.  It must be attached to
+  # the load balancer so its health checks and forwarded connections carry the
+  # expected source identity.
+  network_security_group_ids = [oci_core_network_security_group.load_balancer[0].id]
 
   shape_details {
     minimum_bandwidth_in_mbps = var.load_balancer_min_bandwidth_mbps
