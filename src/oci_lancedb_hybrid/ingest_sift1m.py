@@ -18,7 +18,9 @@ import pyarrow as pa
 
 from .sift1m import DIMENSIONS, read_fvecs
 
-SIFT1M_ARCHIVE_URL = "http://corpus-texmex.irisa.fr/sift.tar.gz"
+# The maintainer currently publishes the corpus through FTP, not the old HTTP
+# URL.  The value remains configurable with --dataset-url for mirrored copies.
+SIFT1M_ARCHIVE_URL = "ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz"
 REQUIRED_FILES = ("sift_base.fvecs", "sift_query.fvecs")
 
 

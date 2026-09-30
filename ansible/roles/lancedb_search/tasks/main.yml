@@ -150,7 +150,9 @@
 
 - name: Check whether the hot tier is mounted
   ansible.builtin.command:
-    cmd: "findmnt --noheadings --target {{ lancedb_mount_path }}"
+    # --target alone succeeds for the underlying root filesystem when the
+    # directory exists, even if this logical volume is not mounted there.
+    cmd: "findmnt --noheadings --mountpoint {{ lancedb_mount_path }}"
   register: lancedb_mount_status
   changed_when: false
   failed_when: false
@@ -159,6 +161,14 @@
   ansible.builtin.command:
     cmd: "mount {{ lancedb_mount_path }}"
   when: lancedb_mount_status.rc != 0
+
+- name: Set hot-tier ownership after mounting
+  ansible.builtin.file:
+    path: "{{ lancedb_mount_path }}"
+    state: directory
+    owner: "{{ lancedb_service_user }}"
+    group: "{{ lancedb_service_group }}"
+    mode: '0755'
 
 - name: Create the service installation directory
   ansible.builtin.file:
