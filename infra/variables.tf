@@ -34,6 +34,13 @@ variable "vcn_ocid" {
   type        = string
 }
 
+variable "network_compartment_ocid" {
+  description = "Compartment containing vcn_ocid and subnet_ocid. Defaults to compartment_ocid when network resources share the deployment compartment."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
 variable "ssh_public_key" {
   description = "SSH public key for emergency administration. Prefer Bastion for normal access."
   type        = string

@@ -6,6 +6,10 @@ data "oci_core_subnet" "search" {
   subnet_id = var.subnet_ocid
 }
 
+data "oci_core_vcn" "search" {
+  vcn_id = var.vcn_ocid
+}
+
 locals {
   search_nodes = {
     for index in range(var.search_service_count) : tostring(index) => index
@@ -23,7 +27,8 @@ locals {
     nullif(trimspace(coalesce(var.object_storage_namespace, "")), ""),
     data.oci_objectstorage_namespace.current.namespace,
   )
-  tags      = merge(var.common_freeform_tags, { "lancedb-search-service" = var.deployment_name })
+  network_compartment_ocid = coalesce(var.network_compartment_ocid, var.compartment_ocid)
+  tags                     = merge(var.common_freeform_tags, { "lancedb-search-service" = var.deployment_name })
   allowed_client_cidrs = toset(compact([
     for cidr in split(",", var.allowed_client_cidrs) : trimspace(cidr)
   ]))
@@ -38,6 +43,10 @@ resource "oci_core_network_security_group" "search" {
     precondition {
       condition     = data.oci_core_subnet.search.vcn_id == var.vcn_ocid
       error_message = "subnet_ocid must belong to vcn_ocid."
+    }
+    precondition {
+      condition     = data.oci_core_vcn.search.compartment_id == local.network_compartment_ocid
+      error_message = "vcn_ocid must belong to network_compartment_ocid."
     }
   }
 }

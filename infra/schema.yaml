@@ -46,6 +46,7 @@ variableGroups:
       - ${ssh_public_key}
   - title: Existing network
     variables:
+      - ${network_compartment_ocid}
       - ${vcn_ocid}
       - ${subnet_ocid}
       - ${allowed_client_cidrs}
@@ -102,17 +103,24 @@ variables:
     type: oci:core:ssh:publickey
     title: Public SSH key
     required: true
+  network_compartment_ocid:
+    type: oci:identity:compartment:id
+    title: Network compartment
+    default: ${compartment_ocid}
+    required: true
   vcn_ocid:
     type: oci:core:vcn:id
     title: Existing VCN
     dependsOn:
-      compartmentId: ${compartment_ocid}
+      compartmentId: ${network_compartment_ocid}
     required: true
   subnet_ocid:
     type: oci:core:subnet:id
     title: Existing private subnet
     dependsOn:
-      compartmentId: ${compartment_ocid}
+      compartmentId: ${network_compartment_ocid}
+      vcnId: ${vcn_ocid}
+      hidePublicSubnet: true
     required: true
   allowed_client_cidrs:
     type: string

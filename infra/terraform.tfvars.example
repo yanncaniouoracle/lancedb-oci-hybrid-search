@@ -2,6 +2,8 @@ region              = "us-ashburn-1"
 compartment_ocid    = "ocid1.compartment.oc1..example"
 availability_domain = "kIdk:US-ASHBURN-AD-1"
 deployment_name     = "lancedb-search"
+# Omit when networking resources use the deployment compartment.
+network_compartment_ocid = "ocid1.compartment.oc1..network-example"
 vcn_ocid            = "ocid1.vcn.oc1.iad.example"
 subnet_ocid         = "ocid1.subnet.oc1.iad.example"
 ssh_public_key      = "ssh-ed25519 AAAA..."
