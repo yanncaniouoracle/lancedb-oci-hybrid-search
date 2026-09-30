@@ -1,0 +1,13 @@
+[Unit]
+Description=Allow approved clients to reach the OCI LanceDB search API
+Wants=network-online.target
+After=network-online.target
+Before=lancedb-search.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/lancedb-search-firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

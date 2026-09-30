@@ -67,6 +67,14 @@ ansible-playbook playbooks/search-service.yml
 
 The role creates an LVM stripe set only on the explicit block devices passed in `lancedb_block_devices`. The initial run is destructive only to those declared empty Block Volumes because it initializes their LVM metadata and XFS filesystem. Do not point it at a boot volume or an already populated hot tier.
 
+The generated inventory also sets `lancedb_host_firewall_source_cidrs` to the
+private LB subnet CIDR. The Ansible role installs a systemd-managed firewall
+helper that permits only this CIDR to reach the search API port before Ubuntu's
+default catch-all firewall rule. This protects both LB health checks and
+forwarded requests across node reboots. When maintaining inventory manually,
+set this variable to the LB subnet CIDR explicitly. Prefer a dedicated LB
+subnet so the CIDR is not shared with unrelated clients.
+
 The infrastructure stack stops after the service is healthy. Ingestion, source-object reconciliation, compaction, index construction, and shard/replica routing are data-plane operations and should be executed by a separate controlled pipeline once the table schema and change semantics are approved.
 
 ## Required operations after deployment

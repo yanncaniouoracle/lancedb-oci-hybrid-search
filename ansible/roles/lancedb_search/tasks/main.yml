@@ -6,10 +6,12 @@
       - lancedb_block_devices | length > 0
       - lancedb_service_git_url | length > 0
       - lancedb_table_name | length > 0
+      - lancedb_host_firewall_source_cidrs | length > 0
       - lancedb_oci_bucket | length > 0
     fail_msg: >-
       This role requires Ubuntu/Debian, explicit attached-device paths, a Git
-      URL, a table name, and the raw-payload bucket. Do not infer device paths.
+      URL, a table name, firewall source CIDR, and the raw-payload bucket. Do
+      not infer device paths or expose the search API to an unbounded CIDR.
 
 - name: Install operating-system dependencies
   ansible.builtin.apt:
@@ -17,12 +19,36 @@
       - ca-certificates
       - curl
       - git
+      - iptables
       - lvm2
       - python3-pip
       - python3-venv
       - xfsprogs
     state: present
     update_cache: true
+
+- name: Install the persistent search API firewall helper
+  ansible.builtin.template:
+    src: lancedb-firewall.sh.j2
+    dest: /usr/local/sbin/lancedb-search-firewall
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Install the persistent search API firewall service
+  ansible.builtin.template:
+    src: lancedb-search-firewall.service.j2
+    dest: /etc/systemd/system/lancedb-search-firewall.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable the search API firewall before serving traffic
+  ansible.builtin.systemd_service:
+    name: lancedb-search-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
 
 - name: Verify declared Block Volume devices are present
   ansible.builtin.stat:

@@ -102,6 +102,25 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_to_searc
   }
 }
 
+# OCI Load Balancer health probes originate from managed service addresses in
+# the LB subnet rather than from the listener VIP.  Allow that subnet to reach
+# the backend health/API port.  Use a dedicated LB subnet in production to
+# keep this CIDR as narrow as possible.
+resource "oci_core_network_security_group_security_rule" "load_balancer_health_check_to_search" {
+  count                     = var.enable_private_load_balancer ? 1 : 0
+  network_security_group_id = oci_core_network_security_group.search.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = data.oci_core_subnet.search.cidr_block
+  source_type               = "CIDR_BLOCK"
+  tcp_options {
+    destination_port_range {
+      min = var.service_port
+      max = var.service_port
+    }
+  }
+}
+
 resource "oci_core_network_security_group_security_rule" "client_to_load_balancer" {
   for_each                  = var.enable_private_load_balancer ? local.gpu_client_cidrs : toset([])
   network_security_group_id = oci_core_network_security_group.load_balancer[0].id

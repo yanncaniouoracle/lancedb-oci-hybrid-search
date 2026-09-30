@@ -23,8 +23,18 @@ output "ansible_inventory" {
   value = join("\n", concat(
     ["[lancedb_search]"],
     [for key, instance in oci_core_instance.search : "${var.deployment_name}-${key} ansible_host=${instance.private_ip}"],
-    ["", "[lancedb_search:vars]", "ansible_user=ubuntu"]
+    [
+      "",
+      "[lancedb_search:vars]",
+      "ansible_user=ubuntu",
+      "lancedb_host_firewall_source_cidrs=[\"${data.oci_core_subnet.search.cidr_block}\"]"
+    ]
   ))
+}
+
+output "ansible_host_firewall_source_cidrs" {
+  description = "CIDR list that Ansible permits through the Ubuntu host firewall for the search API. It is the LB subnet CIDR."
+  value       = [data.oci_core_subnet.search.cidr_block]
 }
 
 output "object_storage_location" {

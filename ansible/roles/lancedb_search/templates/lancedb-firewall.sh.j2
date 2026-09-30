@@ -1,0 +1,13 @@
+#!/bin/sh
+# Re-applied on every boot by lancedb-search-firewall.service.  OCI Ubuntu
+# images may include a final INPUT reject rule even when UFW is inactive.
+set -eu
+
+IPTABLES=/usr/sbin/iptables
+for source_cidr in {% for cidr in lancedb_host_firewall_source_cidrs %}{{ cidr | quote }} {% endfor %}; do
+  if ! "$IPTABLES" -C INPUT -p tcp -s "$source_cidr" --dport {{ lancedb_service_port }} \
+    -m comment --comment lancedb-search-api -j ACCEPT 2>/dev/null; then
+    "$IPTABLES" -I INPUT 5 -p tcp -s "$source_cidr" --dport {{ lancedb_service_port }} \
+      -m comment --comment lancedb-search-api -j ACCEPT
+  fi
+done

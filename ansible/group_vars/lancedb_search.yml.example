@@ -20,6 +20,12 @@ lancedb_vector_dimensions: 768
 lancedb_bind_host: 0.0.0.0
 lancedb_service_port: 8080
 
+# Use the CIDR of the private subnet containing the LB. Terraform's generated
+# inventory supplies this automatically; specify it explicitly for a manual
+# inventory. A dedicated LB subnet keeps this rule narrow.
+lancedb_host_firewall_source_cidrs:
+  - 10.0.0.0/24
+
 # The service returns source_uri values. GPU/application nodes fetch original
 # payloads only after top-k selection, using their own instance principal.
 lancedb_oci_bucket: lancedb-cold

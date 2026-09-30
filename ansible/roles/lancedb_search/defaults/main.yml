@@ -17,6 +17,10 @@ lancedb_table_name: ""
 lancedb_vector_dimensions: 768
 lancedb_bind_host: 0.0.0.0
 lancedb_service_port: 8080
+# Required: CIDRs permitted through the Ubuntu host firewall to the search API.
+# Terraform places the selected private LB in its search subnet and writes that
+# subnet CIDR into the generated Ansible inventory.
+lancedb_host_firewall_source_cidrs: []
 lancedb_oci_bucket: ""
 lancedb_oci_auth: instance_principal
 lancedb_initial_ingest_command: ""
