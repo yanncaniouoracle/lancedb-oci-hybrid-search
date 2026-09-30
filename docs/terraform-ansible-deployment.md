@@ -44,7 +44,8 @@ terraform output -raw ansible_inventory > ../ansible/inventory/hosts.ini
 
 For Resource Manager, upload the `infra/` directory as the stack. `schema.yaml` provides its required input form. It expects an existing VCN and private subnet rather than recreating the GPU-cluster network, and validates that the selected subnet belongs to the selected VCN.
 The form first lists VCNs from the selected network compartment, then lists only
-private subnets from the selected VCN.
+private subnets from the selected VCN. The VCN picker displays names but passes
+the selected OCID to Terraform as `vcn_id`.
 Select Terraform **1.5.x** for the Resource Manager stack; the configuration is
 pinned to that ORM-supported release line.
 

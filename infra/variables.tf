@@ -29,13 +29,13 @@ variable "subnet_ocid" {
   type        = string
 }
 
-variable "vcn_ocid" {
-  description = "Existing VCN containing subnet_ocid. The stack verifies that the supplied subnet belongs to this VCN."
+variable "vcn_id" {
+  description = "Existing VCN selected in Resource Manager. The picker displays its name and passes its OCID as vcn_id."
   type        = string
 }
 
 variable "network_compartment_ocid" {
-  description = "Compartment containing vcn_ocid and subnet_ocid. Defaults to compartment_ocid when network resources share the deployment compartment."
+  description = "Compartment containing vcn_id and subnet_ocid. Defaults to compartment_ocid when network resources share the deployment compartment."
   type        = string
   default     = null
   nullable    = true

@@ -7,7 +7,7 @@ data "oci_core_subnet" "search" {
 }
 
 data "oci_core_vcn" "search" {
-  vcn_id = var.vcn_ocid
+  vcn_id = var.vcn_id
 }
 
 locals {
@@ -41,12 +41,12 @@ resource "oci_core_network_security_group" "search" {
 
   lifecycle {
     precondition {
-      condition     = data.oci_core_subnet.search.vcn_id == var.vcn_ocid
-      error_message = "subnet_ocid must belong to vcn_ocid."
+      condition     = data.oci_core_subnet.search.vcn_id == var.vcn_id
+      error_message = "subnet_ocid must belong to vcn_id."
     }
     precondition {
       condition     = data.oci_core_vcn.search.compartment_id == local.network_compartment_ocid
-      error_message = "vcn_ocid must belong to network_compartment_ocid."
+      error_message = "vcn_id must belong to network_compartment_ocid."
     }
   }
 }

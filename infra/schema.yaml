@@ -47,7 +47,7 @@ variableGroups:
   - title: Existing network
     variables:
       - ${network_compartment_ocid}
-      - ${vcn_ocid}
+      - ${vcn_id}
       - ${subnet_ocid}
       - ${allowed_client_cidrs}
       - ${enable_private_load_balancer}
@@ -108,9 +108,12 @@ variables:
     title: Network compartment
     default: ${compartment_ocid}
     required: true
-  vcn_ocid:
+  vcn_id:
     type: oci:core:vcn:id
     title: Existing VCN
+    description: >-
+      The picker displays VCN names and passes the selected VCN OCID to
+      Terraform as vcn_id.
     dependsOn:
       compartmentId: ${network_compartment_ocid}
     required: true
@@ -119,7 +122,7 @@ variables:
     title: Existing private subnet
     dependsOn:
       compartmentId: ${network_compartment_ocid}
-      vcnId: ${vcn_ocid}
+      vcnId: ${vcn_id}
       hidePublicSubnet: true
     required: true
   allowed_client_cidrs:
