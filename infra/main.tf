@@ -27,7 +27,9 @@ locals {
     }
   }
 
-  namespace_input = trimspace(coalesce(var.object_storage_namespace, ""))
+  # Resource Manager passes an empty string for an unselected optional input.
+  # Terraform 1.5 coalesce rejects a list containing only null/empty values.
+  namespace_input = var.object_storage_namespace == null ? "" : trimspace(var.object_storage_namespace)
   namespace = local.namespace_input != "" ? local.namespace_input : data.oci_objectstorage_namespace.current.namespace
   network_compartment_ocid = coalesce(var.network_compartment_ocid, var.compartment_ocid)
   tags                     = merge(var.common_freeform_tags, { "lancedb-search-service" = var.deployment_name })
