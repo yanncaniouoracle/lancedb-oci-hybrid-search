@@ -48,6 +48,8 @@ private subnets from the selected VCN. The VCN picker displays names but passes
 the selected OCID to Terraform as `vcn_id`.
 Select the separate GPU/application private subnet as well; its CIDR block is
 read by Terraform and used as the search-service ingress source automatically.
+The payload bucket is assumed to be in the same tenancy, so its Object Storage
+namespace is discovered automatically and is not an input parameter.
 Select Terraform **1.5.x** for the Resource Manager stack; the configuration is
 pinned to that ORM-supported release line.
 

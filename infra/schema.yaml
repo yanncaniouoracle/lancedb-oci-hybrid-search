@@ -71,7 +71,6 @@ variableGroups:
     variables:
       - ${object_storage_bucket_name}
       - ${create_object_storage_bucket}
-      - ${object_storage_namespace}
       - ${object_storage_prefix}
   - title: Instance principal access
     variables:
@@ -228,11 +227,6 @@ variables:
     type: boolean
     title: Create the raw-payload bucket
     default: false
-  object_storage_namespace:
-    type: string
-    title: Object Storage namespace override
-    description: Leave empty to discover the tenancy namespace.
-    default: ""
   object_storage_prefix:
     type: string
     title: Raw-payload prefix

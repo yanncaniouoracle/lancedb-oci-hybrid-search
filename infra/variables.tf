@@ -149,13 +149,6 @@ variable "create_object_storage_bucket" {
   default     = false
 }
 
-variable "object_storage_namespace" {
-  description = "Optional Object Storage namespace. Leave null to discover the tenancy namespace."
-  type        = string
-  default     = null
-  nullable    = true
-}
-
 variable "object_storage_prefix" {
   description = "Prefix for raw objects referenced by the hot table."
   type        = string
