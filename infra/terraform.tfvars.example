@@ -37,7 +37,7 @@ enable_private_load_balancer = false
 # before the first apply, then reference a versioned tag or immutable digest.
 enable_object_event_ingestion = true
 ingestion_worker_port         = 8090
-ingestion_function_image      = "iad.ocir.io/REPLACE_NAMESPACE/REPLACE_REPOSITORY/lancedb-object-event-router:0.1.0"
+ingestion_function_image      = "iad.ocir.io/REPLACE_NAMESPACE/REPLACE_REPOSITORY:0.1.0"
 # The generated Ansible inventory delivers this routing registry to every
 # search node. Match broadly only when this bucket has one target table.
 ingestion_source_routes_json  = <<-JSON

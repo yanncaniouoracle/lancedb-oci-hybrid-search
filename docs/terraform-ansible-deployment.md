@@ -55,8 +55,8 @@ For the initial image publication:
 
 ```bash
 cd function/object_event_router
-docker build -t iad.ocir.io/<namespace>/<repository>/lancedb-object-event-router:0.1.0 .
-docker push iad.ocir.io/<namespace>/<repository>/lancedb-object-event-router:0.1.0
+docker build -t iad.ocir.io/<namespace>/<repository>:0.1.0 .
+docker push iad.ocir.io/<namespace>/<repository>:0.1.0
 ```
 
 Set that image reference in `ingestion_function_image`. For an existing bucket,
