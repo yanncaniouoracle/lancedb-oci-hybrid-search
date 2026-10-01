@@ -40,9 +40,9 @@ def main() -> None:
     while True:
         response = client.get_messages(
             queue_id,
-            oci.queue.models.GetMessagesDetails(
-                timeout_in_seconds=20, visibility_in_seconds=90, limit=10
-            ),
+            timeout_in_seconds=20,
+            visibility_in_seconds=90,
+            limit=10,
         )
         for message in response.data.messages:
             try:
