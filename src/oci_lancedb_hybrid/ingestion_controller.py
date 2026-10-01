@@ -32,6 +32,38 @@ def post_json(endpoint: str, value: dict) -> None:
             raise RuntimeError(f"Worker {endpoint} returned HTTP {response.status}")
 
 
+def normalized_payload(message_content: dict, message_id: str, routes: list[dict]) -> dict | None:
+    """Return a worker payload from either an OCI event or a reconciler message."""
+    if message_content.get("schema") == "oci-lancedb-reconciliation/v1":
+        required = {"operation", "bucket", "object_key", "target_table"}
+        missing = required - message_content.keys()
+        if missing:
+            raise ValueError(f"Reconciliation message is missing {sorted(missing)!r}")
+        return {
+            "event_id": str(message_content.get("event_id") or message_id),
+            "operation": message_content["operation"],
+            "bucket": message_content["bucket"],
+            "object_key": message_content["object_key"],
+            "object_version": message_content.get("object_version"),
+            "event_time": message_content.get("event_time"),
+            "target_table": message_content["target_table"],
+        }
+
+    event = parse_object_event(message_content)
+    route = route_event(event, routes)
+    if route is None:
+        return None
+    return {
+        "event_id": event.event_id or message_id,
+        "operation": event.operation,
+        "bucket": event.bucket,
+        "object_key": event.object_key,
+        "object_version": event.object_version,
+        "event_time": event.event_time,
+        "target_table": route["table"],
+    }
+
+
 def main() -> None:
     queue_id = os.environ["LANCEDB_INGESTION_QUEUE_ID"]
     routes = json.loads(Path(os.environ["LANCEDB_SOURCE_ROUTES_PATH"]).read_text())
@@ -46,18 +78,8 @@ def main() -> None:
         )
         for message in response.data.messages:
             try:
-                event = parse_object_event(json.loads(message.content))
-                route = route_event(event, routes)
-                if route is not None:
-                    payload = {
-                        "event_id": event.event_id or message.id,
-                        "operation": event.operation,
-                        "bucket": event.bucket,
-                        "object_key": event.object_key,
-                        "object_version": event.object_version,
-                        "event_time": event.event_time,
-                        "target_table": route["table"],
-                    }
+                payload = normalized_payload(json.loads(message.content), message.id, routes)
+                if payload is not None:
                     for worker in workers:
                         post_json(worker, payload)
                 client.delete_message(queue_id, message.receipt)

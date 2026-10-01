@@ -34,3 +34,7 @@ lancedb_ingestion_worker_source_cidrs: []
 lancedb_ingestion_queue_id: ""
 lancedb_ingestion_queue_endpoint: ""
 lancedb_source_routes: []
+# Full bucket/table comparison protects against events missed while a component
+# is unavailable.  OCI Events remains the lower-latency update path.
+lancedb_reconciliation_enabled: true
+lancedb_reconciliation_interval: 1h

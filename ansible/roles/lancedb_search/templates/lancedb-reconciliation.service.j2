@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile OCI Object Storage routes with LanceDB hot tables
+After=network-online.target lancedb-ingestion-controller.service
+
+[Service]
+Type=oneshot
+User={{ lancedb_service_user }}
+Group={{ lancedb_service_group }}
+EnvironmentFile=/etc/lancedb-search/lancedb.env
+ExecStart={{ lancedb_virtualenv_path }}/bin/oci-lancedb-reconcile

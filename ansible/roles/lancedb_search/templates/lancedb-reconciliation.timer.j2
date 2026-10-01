@@ -1,0 +1,10 @@
+[Unit]
+Description=Scheduled OCI Object Storage to LanceDB reconciliation
+
+[Timer]
+OnBootSec=10m
+OnUnitActiveSec={{ lancedb_reconciliation_interval }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

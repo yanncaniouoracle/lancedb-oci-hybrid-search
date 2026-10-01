@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oci-lancedb-hybrid"
-version = "0.1.0"
+version = "0.1.1"
 description = "OCI Object Storage plus Block Volume LanceDB search service"
 requires-python = ">=3.10"
 dependencies = [
@@ -27,6 +27,7 @@ oci-lancedb-validate = "oci_lancedb_hybrid.validate:main"
 oci-lancedb-search = "oci_lancedb_hybrid.service:run"
 oci-lancedb-ingestion-worker = "oci_lancedb_hybrid.ingestion_worker:run"
 oci-lancedb-ingestion-controller = "oci_lancedb_hybrid.ingestion_controller:main"
+oci-lancedb-reconcile = "oci_lancedb_hybrid.reconciliation:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

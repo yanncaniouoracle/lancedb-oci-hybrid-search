@@ -298,6 +298,30 @@
     - lancedb_ingestion_enabled | bool
     - inventory_hostname == groups['lancedb_search'][0]
 
+- name: Install the reconciliation service on the first search node
+  ansible.builtin.template:
+    src: lancedb-reconciliation.service.j2
+    dest: /etc/systemd/system/lancedb-reconciliation.service
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - lancedb_ingestion_enabled | bool
+    - lancedb_reconciliation_enabled | bool
+    - inventory_hostname == groups['lancedb_search'][0]
+
+- name: Install the reconciliation timer on the first search node
+  ansible.builtin.template:
+    src: lancedb-reconciliation.timer.j2
+    dest: /etc/systemd/system/lancedb-reconciliation.timer
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - lancedb_ingestion_enabled | bool
+    - lancedb_reconciliation_enabled | bool
+    - inventory_hostname == groups['lancedb_search'][0]
+
 - name: Install the systemd service
   ansible.builtin.template:
     src: lancedb-search.service.j2
@@ -334,6 +358,17 @@
     daemon_reload: true
   when:
     - lancedb_ingestion_enabled | bool
+    - inventory_hostname == groups['lancedb_search'][0]
+
+- name: Enable the reconciliation timer
+  ansible.builtin.systemd_service:
+    name: lancedb-reconciliation.timer
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - lancedb_ingestion_enabled | bool
+    - lancedb_reconciliation_enabled | bool
     - inventory_hostname == groups['lancedb_search'][0]
 
 - name: Run a workload-specific ingestion command when explicitly requested
