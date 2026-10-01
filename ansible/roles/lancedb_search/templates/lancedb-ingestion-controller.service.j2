@@ -1,0 +1,19 @@
+[Unit]
+Description=OCI LanceDB Object Storage ingestion controller
+After=network-online.target lancedb-ingestion-worker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ lancedb_service_user }}
+Group={{ lancedb_service_group }}
+WorkingDirectory={{ lancedb_install_path }}
+EnvironmentFile=/etc/lancedb-search/lancedb.env
+ExecStart={{ lancedb_virtualenv_path }}/bin/oci-lancedb-ingestion-controller
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

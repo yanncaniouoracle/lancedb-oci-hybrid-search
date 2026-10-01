@@ -24,3 +24,12 @@ lancedb_host_firewall_source_cidrs: []
 lancedb_oci_bucket: ""
 lancedb_oci_auth: instance_principal
 lancedb_initial_ingest_command: ""
+
+# Object Storage event ingestion. Terraform writes the Queue values into its
+# generated inventory; source routes remain a deliberate data-plane decision.
+lancedb_ingestion_enabled: false
+lancedb_ingestion_worker_port: 8090
+lancedb_ingestion_worker_source_cidrs: []
+lancedb_ingestion_queue_id: ""
+lancedb_ingestion_queue_endpoint: ""
+lancedb_source_routes: []

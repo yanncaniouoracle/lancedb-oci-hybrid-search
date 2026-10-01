@@ -21,6 +21,57 @@ The service returns top-k identifiers, metadata, and source URIs. Original docum
 
 Every service node owns a local hot tier. Do not configure a Block Volume as shareable and do not mount it from GPU nodes. Scale uses explicit database shards and replicas, each with its own local hot tier, not a shared filesystem.
 
+## Object Storage update pipeline
+
+When `enable_object_event_ingestion` is enabled, Terraform creates a regional
+Events rule in the selected compartment. OCI rules apply to that compartment
+and child compartments, so the rule receives Object Storage create, update, and
+delete events from every enabled bucket in scope. OCI Events cannot write
+directly to OCI Queue; the stack deploys a lightweight Function that copies the
+event unchanged to a Queue. The first search node is the single active Queue
+consumer and fans a normalized delta to a private ingestion worker on every
+search-node replica.
+
+```text
+Object Storage event -> OCI Function -> OCI Queue -> controller on search node 0
+                                                     -> worker on every search node
+                                                     -> local hot LanceDB replica
+```
+
+The event rule intentionally has broad compartment scope. The **source-routing
+registry** is the safety boundary: only matching bucket/prefix entries in
+`lancedb_source_routes` are applied, and longest matching prefix wins. Other
+events are acknowledged without a table change. Route changes and moving a
+prefix between tables are controlled data migrations.
+
+Before applying the stack, build and push the included function image to OCIR:
+
+```bash
+cd function/object_event_router
+docker build -t iad.ocir.io/<namespace>/<repository>/lancedb-object-event-router:0.1.0 .
+docker push iad.ocir.io/<namespace>/<repository>/lancedb-object-event-router:0.1.0
+```
+
+Set that image reference in `ingestion_function_image`. For an existing bucket,
+enable object events explicitly; Terraform can enable them only for a bucket it
+creates:
+
+```bash
+oci os bucket update --name <bucket> --object-events-enabled true
+```
+
+The Queue is at-least-once and event ordering is not assumed. The controller
+deletes a message only after every worker acknowledges it. Workers apply updates
+by stable object ID and should be configured with an approved embedding provider
+before production. The included deterministic provider is only a lifecycle and
+replica-synchronization test harness.
+
+The initial target table is created on first ingest if it does not exist, with
+`id`, `source_uri`, `object_version`, `event_time`, and `vector` columns. An
+existing table must expose compatible columns and use the configured vector
+dimension. Do not point the route at an unrelated benchmark table whose schema
+or identifier type differs.
+
 ## Prerequisites
 
 - OCI CLI/API credentials capable of creating the requested resources, or Oracle Resource Manager.
@@ -75,7 +126,9 @@ forwarded requests across node reboots. When maintaining inventory manually,
 set this variable to the LB subnet CIDR explicitly. Prefer a dedicated LB
 subnet so the CIDR is not shared with unrelated clients.
 
-The infrastructure stack stops after the service is healthy. Ingestion, source-object reconciliation, compaction, index construction, and shard/replica routing are data-plane operations and should be executed by a separate controlled pipeline once the table schema and change semantics are approved.
+The infrastructure stack installs the event-to-worker delivery path. Source
+reconciliation, compaction, index construction, embedding-provider selection,
+and shard routing remain controlled data-plane operations.
 
 ## Required operations after deployment
 

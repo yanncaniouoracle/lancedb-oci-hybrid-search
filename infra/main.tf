@@ -145,6 +145,21 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_egress" 
   destination_type          = "CIDR_BLOCK"
 }
 
+resource "oci_core_network_security_group_security_rule" "controller_to_ingestion_workers" {
+  count                     = var.enable_object_event_ingestion ? 1 : 0
+  network_security_group_id = oci_core_network_security_group.search.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = oci_core_network_security_group.search.id
+  source_type               = "NETWORK_SECURITY_GROUP"
+  tcp_options {
+    destination_port_range {
+      min = var.ingestion_worker_port
+      max = var.ingestion_worker_port
+    }
+  }
+}
+
 resource "oci_core_instance" "search" {
   for_each            = local.search_nodes
   availability_domain = var.availability_domain
@@ -200,7 +215,75 @@ resource "oci_objectstorage_bucket" "raw" {
   name           = var.object_storage_bucket_name
   access_type    = "NoPublicAccess"
   storage_tier   = "Standard"
+  object_events_enabled = var.enable_object_event_ingestion
   freeform_tags  = local.tags
+}
+
+resource "oci_queue_queue" "object_events" {
+  count                = var.enable_object_event_ingestion ? 1 : 0
+  compartment_id       = var.compartment_ocid
+  display_name         = "${var.deployment_name}-object-events"
+  retention_in_seconds = var.ingestion_queue_retention_seconds
+  visibility_in_seconds = var.ingestion_queue_visibility_seconds
+  timeout_in_seconds   = 30
+  freeform_tags        = local.tags
+}
+
+resource "oci_functions_application" "object_event_router" {
+  count                      = var.enable_object_event_ingestion ? 1 : 0
+  compartment_id             = var.compartment_ocid
+  display_name               = "${var.deployment_name}-object-event-router"
+  subnet_ids                 = [var.subnet_ocid]
+  network_security_group_ids = [oci_core_network_security_group.search.id]
+  freeform_tags              = local.tags
+}
+
+resource "oci_functions_function" "object_event_router" {
+  count          = var.enable_object_event_ingestion ? 1 : 0
+  application_id = oci_functions_application.object_event_router[0].id
+  display_name   = "${var.deployment_name}-object-event-router"
+  image          = var.ingestion_function_image
+  memory_in_mbs  = var.ingestion_function_memory_mbs
+  timeout_in_seconds = 30
+  config = {
+    QUEUE_ENDPOINT = oci_queue_queue.object_events[0].messages_endpoint
+    QUEUE_ID       = oci_queue_queue.object_events[0].id
+  }
+  freeform_tags = local.tags
+
+  lifecycle {
+    precondition {
+      condition     = var.ingestion_function_image != null && trimspace(var.ingestion_function_image) != ""
+      error_message = "ingestion_function_image must reference the pre-built function/object_event_router OCIR image when enable_object_event_ingestion is true."
+    }
+  }
+}
+
+resource "oci_events_rule" "object_changes" {
+  count          = var.enable_object_event_ingestion ? 1 : 0
+  compartment_id = var.compartment_ocid
+  display_name   = "${var.deployment_name}-object-changes"
+  description    = "Region-wide Object Storage create, update, and delete events for LanceDB ingestion."
+  is_enabled     = true
+  freeform_tags  = local.tags
+
+  condition_details {
+    event_types = [
+      "com.oraclecloud.objectstorage.createobject",
+      "com.oraclecloud.objectstorage.updateobject",
+      "com.oraclecloud.objectstorage.deleteobject",
+    ]
+    data = jsonencode({})
+  }
+
+  actions {
+    action {
+      action_type = "FAAS"
+      is_enabled  = true
+      function_id = oci_functions_function.object_event_router[0].id
+      description = "Queue Object Storage changes for the LanceDB ingestion controller."
+    }
+  }
 }
 
 resource "oci_identity_policy" "search_object_read" {
@@ -219,6 +302,26 @@ resource "oci_identity_policy" "search_object_read" {
       error_message = "dynamic_group_name is required when create_instance_principal_policy is true."
     }
   }
+}
+
+resource "oci_identity_policy" "search_queue_consume" {
+  count          = var.create_instance_principal_policy && var.enable_object_event_ingestion ? 1 : 0
+  compartment_id = var.compartment_ocid
+  name           = "${var.deployment_name}-queue-consume"
+  description    = "Allow the first LanceDB search node to consume Object Storage update events."
+  statements = [
+    "Allow dynamic-group ${var.dynamic_group_name} to use queue-pull in compartment id ${var.compartment_ocid} where target.queue.id = '${oci_queue_queue.object_events[0].id}'",
+  ]
+}
+
+resource "oci_identity_policy" "function_queue_publish" {
+  count          = var.enable_object_event_ingestion ? 1 : 0
+  compartment_id = var.compartment_ocid
+  name           = "${var.deployment_name}-function-queue-publish"
+  description    = "Allow only Functions resource principals in this compartment to publish Object Storage events to the ingestion queue."
+  statements = [
+    "Allow any-user to use queue-push in compartment id ${var.compartment_ocid} where all {request.principal.type = 'fnfunc', target.queue.id = '${oci_queue_queue.object_events[0].id}'}",
+  ]
 }
 
 resource "oci_load_balancer_load_balancer" "search" {

@@ -16,6 +16,7 @@ outputGroups:
       - search_service_endpoint
       - search_service_private_ips
       - object_storage_location
+      - ingestion_pipeline
       - ansible_inventory
 
 outputs:
@@ -29,6 +30,10 @@ outputs:
     visible: true
   object_storage_location:
     title: Object Storage payload location
+    type: copyableString
+    visible: true
+  ingestion_pipeline:
+    title: Object event ingestion resources
     type: copyableString
     visible: true
   ansible_inventory:
@@ -76,6 +81,13 @@ variableGroups:
     variables:
       - ${create_instance_principal_policy}
       - ${dynamic_group_name}
+  - title: Object event ingestion
+    variables:
+      - ${enable_object_event_ingestion}
+      - ${ingestion_worker_port}
+      - ${ingestion_function_image}
+      - ${ingestion_queue_retention_seconds}
+      - ${ingestion_queue_visibility_seconds}
 
 variables:
   compartment_ocid:
@@ -243,3 +255,36 @@ variables:
     title: Existing dynamic-group name
     visible: ${create_instance_principal_policy}
     required: true
+  enable_object_event_ingestion:
+    type: boolean
+    title: Enable Object Storage event ingestion
+    description: >-
+      Creates a compartment-wide, regional Object Storage create update delete
+      rule, a Function-to-Queue bridge, and Queue configuration for Ansible.
+      Existing buckets must independently enable Emit object events.
+    default: false
+  ingestion_worker_port:
+    type: integer
+    title: Private worker port
+    default: 8090
+    minimum: 1
+    maximum: 65535
+    visible: ${enable_object_event_ingestion}
+  ingestion_function_image:
+    type: string
+    title: Event router OCIR image
+    description: >-
+      Build and push function/object_event_router before apply, then provide
+      its immutable OCIR image reference.
+    visible: ${enable_object_event_ingestion}
+    required: true
+  ingestion_queue_retention_seconds:
+    type: integer
+    title: Queue retention seconds
+    default: 345600
+    visible: ${enable_object_event_ingestion}
+  ingestion_queue_visibility_seconds:
+    type: integer
+    title: Queue visibility seconds
+    default: 120
+    visible: ${enable_object_event_ingestion}

@@ -8,6 +8,9 @@
       - lancedb_table_name | length > 0
       - lancedb_host_firewall_source_cidrs | length > 0
       - lancedb_oci_bucket | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_ingestion_queue_id | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_ingestion_queue_endpoint | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_source_routes | length > 0
     fail_msg: >-
       This role requires Ubuntu/Debian, explicit attached-device paths, a Git
       URL, a table name, firewall source CIDR, and the raw-payload bucket. Do
@@ -49,6 +52,32 @@
     enabled: true
     state: started
     daemon_reload: true
+
+- name: Install the persistent ingestion worker firewall helper
+  ansible.builtin.template:
+    src: lancedb-ingestion-firewall.sh.j2
+    dest: /usr/local/sbin/lancedb-ingestion-firewall
+    owner: root
+    group: root
+    mode: '0750'
+  when: lancedb_ingestion_enabled | bool
+
+- name: Install the persistent ingestion worker firewall service
+  ansible.builtin.template:
+    src: lancedb-ingestion-firewall.service.j2
+    dest: /etc/systemd/system/lancedb-ingestion-firewall.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: lancedb_ingestion_enabled | bool
+
+- name: Enable the worker firewall before worker traffic
+  ansible.builtin.systemd_service:
+    name: lancedb-ingestion-firewall.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: lancedb_ingestion_enabled | bool
 
 - name: Verify declared Block Volume devices are present
   ansible.builtin.stat:
@@ -215,7 +244,7 @@
 
 - name: Install the search-service Python environment
   ansible.builtin.pip:
-    name: ".[service]"
+    name: ".[service,ingestion]"
     chdir: "{{ lancedb_install_path }}"
     virtualenv: "{{ lancedb_virtualenv_path }}"
     virtualenv_command: python3 -m venv
@@ -240,6 +269,35 @@
     mode: '0640'
   notify: Restart LanceDB search service
 
+- name: Render source-routing registry
+  ansible.builtin.copy:
+    content: "{{ lancedb_source_routes | to_json }}\n"
+    dest: /etc/lancedb-search/source-routes.json
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0640'
+  when: lancedb_ingestion_enabled | bool
+
+- name: Install the ingestion worker service
+  ansible.builtin.template:
+    src: lancedb-ingestion-worker.service.j2
+    dest: /etc/systemd/system/lancedb-ingestion-worker.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: lancedb_ingestion_enabled | bool
+
+- name: Install the active ingestion controller on the first search node
+  ansible.builtin.template:
+    src: lancedb-ingestion-controller.service.j2
+    dest: /etc/systemd/system/lancedb-ingestion-controller.service
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - lancedb_ingestion_enabled | bool
+    - inventory_hostname == groups['lancedb_search'][0]
+
 - name: Install the systemd service
   ansible.builtin.template:
     src: lancedb-search.service.j2
@@ -259,6 +317,24 @@
     # Do not attempt to start FastAPI before that table exists.
     state: "{{ 'stopped' if lancedb_initial_ingest_command | length > 0 else 'started' }}"
     daemon_reload: true
+
+- name: Enable the local ingestion worker
+  ansible.builtin.systemd_service:
+    name: lancedb-ingestion-worker.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: lancedb_ingestion_enabled | bool
+
+- name: Enable the active ingestion controller
+  ansible.builtin.systemd_service:
+    name: lancedb-ingestion-controller.service
+    enabled: true
+    state: started
+    daemon_reload: true
+  when:
+    - lancedb_ingestion_enabled | bool
+    - inventory_hostname == groups['lancedb_search'][0]
 
 - name: Run a workload-specific ingestion command when explicitly requested
   ansible.builtin.command:

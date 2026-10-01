@@ -35,3 +35,17 @@ lancedb_oci_auth: instance_principal
 # workload-specific. Run the project's ingestion command separately after the
 # service host is configured and the table schema has been agreed.
 lancedb_initial_ingest_command: ""
+
+# Enable only after Terraform creates the Queue and function bridge. The event
+# rule is compartment-wide; this registry deliberately accepts only declared
+# bucket/prefix sources. Longest matching prefix wins.
+lancedb_ingestion_enabled: true
+lancedb_ingestion_worker_port: 8090
+lancedb_ingestion_worker_source_cidrs:
+  - 10.0.0.0/24
+lancedb_ingestion_queue_id: "ocid1.queue.oc1..."
+lancedb_ingestion_queue_endpoint: "https://cell-1.queue.messaging.us-ashburn-1.oci.oraclecloud.com"
+lancedb_source_routes:
+  - bucket: lancedb-cold
+    prefix: ""
+    table: REPLACE_TABLE_NAME

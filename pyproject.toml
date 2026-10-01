@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 service = ["fastapi>=0.115", "lancedb>=0.39", "uvicorn[standard]>=0.30"]
+ingestion = ["fastapi>=0.115", "lancedb>=0.39", "pyarrow>=18", "uvicorn[standard]>=0.30"]
 mnist = ["lancedb>=0.39", "pillow>=10", "pyarrow>=18"]
 sift = ["lancedb>=0.39", "pyarrow>=18"]
 
@@ -24,6 +25,8 @@ oci-lancedb-ingest-sift1m = "oci_lancedb_hybrid.ingest_sift1m:main"
 oci-lancedb-benchmark-sift1m = "oci_lancedb_hybrid.benchmark_sift1m:main"
 oci-lancedb-validate = "oci_lancedb_hybrid.validate:main"
 oci-lancedb-search = "oci_lancedb_hybrid.service:run"
+oci-lancedb-ingestion-worker = "oci_lancedb_hybrid.ingestion_worker:run"
+oci-lancedb-ingestion-controller = "oci_lancedb_hybrid.ingestion_controller:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

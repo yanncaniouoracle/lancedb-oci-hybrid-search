@@ -31,3 +31,9 @@ create_instance_principal_policy = false
 dynamic_group_name              = null
 
 enable_private_load_balancer = false
+
+# Event rule scope is the selected compartment and its child compartments in
+# this region. Build and push function/object_event_router to OCIR first.
+enable_object_event_ingestion = true
+ingestion_worker_port         = 8090
+ingestion_function_image      = "iad.ocir.io/REPLACE_NAMESPACE/REPLACE_REPOSITORY/lancedb-object-event-router:0.1.0"

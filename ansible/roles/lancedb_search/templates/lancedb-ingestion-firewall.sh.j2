@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+for source_cidr in {% for cidr in lancedb_ingestion_worker_source_cidrs %}{{ cidr | quote }} {% endfor %}; do
+  if ! /usr/sbin/iptables -C INPUT -p tcp -s "${source_cidr}" --dport {{ lancedb_ingestion_worker_port }} -m comment --comment lancedb-ingestion-worker -j ACCEPT 2>/dev/null; then
+    /usr/sbin/iptables -I INPUT 5 -p tcp -s "${source_cidr}" --dport {{ lancedb_ingestion_worker_port }} -m comment --comment lancedb-ingestion-worker -j ACCEPT
+  fi
+done

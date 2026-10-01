@@ -168,6 +168,43 @@ variable "dynamic_group_name" {
   nullable    = true
 }
 
+variable "enable_object_event_ingestion" {
+  description = "Create the Object Storage event rule, OCI Function bridge, Queue, and search-node ingestion services."
+  type        = bool
+  default     = false
+}
+
+variable "ingestion_worker_port" {
+  description = "Private port used by the controller to deliver updates to each search-node worker."
+  type        = number
+  default     = 8090
+}
+
+variable "ingestion_queue_retention_seconds" {
+  description = "Retention for Object Storage event messages before they expire."
+  type        = number
+  default     = 345600
+}
+
+variable "ingestion_queue_visibility_seconds" {
+  description = "Queue visibility timeout; must cover fan-out and retry handling."
+  type        = number
+  default     = 120
+}
+
+variable "ingestion_function_image" {
+  description = "Pre-built OCIR image for function/object_event_router. Required when object-event ingestion is enabled."
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "ingestion_function_memory_mbs" {
+  description = "Memory allocated to the lightweight event-to-Queue Function."
+  type        = number
+  default     = 256
+}
+
 variable "common_freeform_tags" {
   description = "Free-form tags applied to created resources."
   type        = map(string)

@@ -20,6 +20,9 @@ The search service stores and reads vectors, indexes, and searchable metadata fr
 - A standalone Terraform plus Ansible deployment stack for private search
   compute, direct Block Volume hot tiers, Object Storage access, and optional
   private load balancing.
+- An event-driven update path: OCI Object Storage events flow through a small
+  OCI Function into OCI Queue; the first search node fans each delta to one
+  private ingestion worker on every search-node replica.
 
 MNIST validates the architecture only. Use SIFT1M or a representative corpus for throughput and latency testing.
 
@@ -47,4 +50,4 @@ Use an OCI instance principal on client nodes. The node's dynamic group needs on
 
 ## Scope
 
-This is a reference service, not a complete multi-tenant control plane. Production deployments should add authentication/authorization, tenant-safe filter construction, request limits, tracing/metrics, load balancing or shard-aware routing, lifecycle management, and an ingestion/update pipeline.
+This is a reference service, not a complete multi-tenant control plane. Production deployments should add authentication/authorization, tenant-safe filter construction, request limits, tracing/metrics, load balancing or shard-aware routing, and lifecycle management. The included ingestion worker uses a deterministic test embedding; replace it with the workload's approved embedding provider before production use.

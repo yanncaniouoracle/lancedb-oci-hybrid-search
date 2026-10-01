@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     database = lancedb.connect(DB_URI)
     if TABLE_NAME not in database.table_names():
         raise RuntimeError(f"Table {TABLE_NAME!r} not found at {DB_URI}")
-    app.state.table = database.open_table(TABLE_NAME)
+    app.state.database = database
     yield
 
 
@@ -40,7 +40,10 @@ def healthz() -> dict[str, str]:
 
 @app.post("/v1/search")
 def search(request: SearchRequest) -> dict[str, object]:
-    query = app.state.table.search(request.vector).limit(request.top_k)
+    # Workers commit new local LanceDB versions. Reopen per request so a serving
+    # process sees the latest manifest without a restart.
+    table = app.state.database.open_table(TABLE_NAME)
+    query = table.search(request.vector).limit(request.top_k)
     if request.where:
         query = query.where(request.where)
     try:

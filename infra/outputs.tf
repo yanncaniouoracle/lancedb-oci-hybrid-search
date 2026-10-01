@@ -27,9 +27,24 @@ output "ansible_inventory" {
       "",
       "[lancedb_search:vars]",
       "ansible_user=ubuntu",
-      "lancedb_host_firewall_source_cidrs=[\"${data.oci_core_subnet.search.cidr_block}\"]"
+      "lancedb_host_firewall_source_cidrs=[\"${data.oci_core_subnet.search.cidr_block}\"]",
+      "lancedb_ingestion_enabled=${var.enable_object_event_ingestion}",
+      "lancedb_ingestion_worker_port=${var.ingestion_worker_port}",
+      "lancedb_ingestion_worker_source_cidrs=[\"${data.oci_core_subnet.search.cidr_block}\"]",
+      "lancedb_ingestion_queue_id=${var.enable_object_event_ingestion ? oci_queue_queue.object_events[0].id : \"\"}",
+      "lancedb_ingestion_queue_endpoint=${var.enable_object_event_ingestion ? oci_queue_queue.object_events[0].messages_endpoint : \"\"}"
     ]
   ))
+}
+
+output "ingestion_pipeline" {
+  description = "Object event rule and Queue endpoints when the ingestion pipeline is enabled. Existing source buckets must have object events enabled."
+  value = var.enable_object_event_ingestion ? {
+    event_rule_id  = oci_events_rule.object_changes[0].id
+    queue_id       = oci_queue_queue.object_events[0].id
+    queue_endpoint = oci_queue_queue.object_events[0].messages_endpoint
+    function_id    = oci_functions_function.object_event_router[0].id
+  } : null
 }
 
 output "ansible_host_firewall_source_cidrs" {
