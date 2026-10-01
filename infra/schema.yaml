@@ -274,8 +274,17 @@ variables:
     type: string
     title: Event router OCIR image
     description: >-
-      Build and push function/object_event_router before apply, then provide
-      its immutable OCIR image reference.
+      Reference the shared OCIR repository's versioned router image. Publish it
+      once outside ORM; provide an immutable digest when possible.
+    visible: ${enable_object_event_ingestion}
+    required: true
+  ingestion_source_routes_json:
+    type: string
+    title: Source-routing registry (JSON)
+    description: >-
+      JSON array of bucket/prefix/table routes applied by every ingestion
+      worker. Example: [{"bucket":"lancedb-cold","prefix":"images/","table":"image_vectors"}].
+      Longest matching prefix wins.
     visible: ${enable_object_event_ingestion}
     required: true
   ingestion_queue_retention_seconds:

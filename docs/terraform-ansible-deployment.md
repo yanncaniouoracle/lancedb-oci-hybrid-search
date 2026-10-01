@@ -39,12 +39,19 @@ Object Storage event -> OCI Function -> OCI Queue -> controller on search node 0
 ```
 
 The event rule intentionally has broad compartment scope. The **source-routing
-registry** is the safety boundary: only matching bucket/prefix entries in
-`lancedb_source_routes` are applied, and longest matching prefix wins. Other
-events are acknowledged without a table change. Route changes and moving a
-prefix between tables are controlled data migrations.
+registry** is the safety boundary: only matching bucket/prefix entries in the
+ORM `ingestion_source_routes_json` input are applied, and longest matching
+prefix wins. Terraform emits this setting into the generated Ansible inventory;
+it is not an after-deployment manual edit. Other events are acknowledged
+without a table change. Route changes and moving a prefix between tables are
+controlled data migrations.
 
-Before applying the stack, build and push the included function image to OCIR:
+Use one shared, private OCIR repository for this solution. Create the repository
+once per tenancy/region, then build and publish versioned router images to it.
+Every ORM deployment references the selected immutable image tag (preferably a
+digest); it does not create a per-stack repository or rebuild the image.
+
+For the initial image publication:
 
 ```bash
 cd function/object_event_router

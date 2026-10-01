@@ -193,10 +193,26 @@ variable "ingestion_queue_visibility_seconds" {
 }
 
 variable "ingestion_function_image" {
-  description = "Pre-built OCIR image for function/object_event_router. Required when object-event ingestion is enabled."
+  description = "Pre-built image in the shared OCIR repository for function/object_event_router. Required when object-event ingestion is enabled; use an immutable digest when possible."
   type        = string
   default     = null
   nullable    = true
+}
+
+variable "ingestion_source_routes_json" {
+  description = "JSON source-routing registry. Each entry has bucket, prefix, and table fields. Longest matching prefix wins. Required when object-event ingestion is enabled."
+  type        = string
+  default     = "[]"
+
+  validation {
+    condition = try(alltrue([
+      for route in tolist(jsondecode(var.ingestion_source_routes_json)) :
+      try(trimspace(route.bucket), "") != "" &&
+      can(route.prefix) &&
+      try(trimspace(route.table), "") != ""
+    ]), false)
+    error_message = "ingestion_source_routes_json must be a JSON array of objects with non-empty bucket and table fields, and a prefix field."
+  }
 }
 
 variable "ingestion_function_memory_mbs" {

@@ -31,6 +31,7 @@ output "ansible_inventory" {
       "lancedb_ingestion_enabled=${var.enable_object_event_ingestion}",
       "lancedb_ingestion_worker_port=${var.ingestion_worker_port}",
       "lancedb_ingestion_worker_source_cidrs=[\"${data.oci_core_subnet.search.cidr_block}\"]",
+      "lancedb_source_routes=${jsonencode(jsondecode(var.ingestion_source_routes_json))}",
       "lancedb_ingestion_queue_id=${var.enable_object_event_ingestion ? oci_queue_queue.object_events[0].id : \"\"}",
       "lancedb_ingestion_queue_endpoint=${var.enable_object_event_ingestion ? oci_queue_queue.object_events[0].messages_endpoint : \"\"}"
     ]

@@ -33,7 +33,15 @@ dynamic_group_name              = null
 enable_private_load_balancer = false
 
 # Event rule scope is the selected compartment and its child compartments in
-# this region. Build and push function/object_event_router to OCIR first.
+# this region. Reuse the shared OCIR repository; publish the router image there
+# before the first apply, then reference a versioned tag or immutable digest.
 enable_object_event_ingestion = true
 ingestion_worker_port         = 8090
 ingestion_function_image      = "iad.ocir.io/REPLACE_NAMESPACE/REPLACE_REPOSITORY/lancedb-object-event-router:0.1.0"
+# The generated Ansible inventory delivers this routing registry to every
+# search node. Match broadly only when this bucket has one target table.
+ingestion_source_routes_json  = <<-JSON
+[
+  {"bucket": "lancedb-cold", "prefix": "", "table": "object_events_vectors"}
+]
+JSON

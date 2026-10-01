@@ -256,6 +256,10 @@ resource "oci_functions_function" "object_event_router" {
       condition     = var.ingestion_function_image != null && trimspace(var.ingestion_function_image) != ""
       error_message = "ingestion_function_image must reference the pre-built function/object_event_router OCIR image when enable_object_event_ingestion is true."
     }
+    precondition {
+      condition     = !var.enable_object_event_ingestion || length(jsondecode(var.ingestion_source_routes_json)) > 0
+      error_message = "ingestion_source_routes_json must contain at least one bucket/prefix/table route when object-event ingestion is enabled."
+    }
   }
 }
 
