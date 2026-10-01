@@ -11,6 +11,7 @@ lancedb_install_path: /opt/oci-lancedb-hybrid
 lancedb_service_user: ubuntu
 lancedb_service_group: ubuntu
 lancedb_virtualenv_path: "{{ lancedb_install_path }}/.venv"
+lancedb_update_package_cache: true
 
 lancedb_database_path: "{{ lancedb_mount_path }}/lancedb-hot"
 lancedb_table_name: ""

@@ -128,6 +128,11 @@ cp group_vars/lancedb_search.yml.example group_vars/lancedb_search.yml
 ansible-playbook playbooks/search-service.yml
 ```
 
+The playbook explicitly loads `group_vars/lancedb_search.yml` for deployment-
+specific storage and service settings. Terraform-generated Queue and source-route
+settings remain in `inventory/hosts.ini`; omit those keys from the group-vars
+file so the generated values take precedence.
+
 The role creates an LVM stripe set only on the explicit block devices passed in `lancedb_block_devices`. The initial run is destructive only to those declared empty Block Volumes because it initializes their LVM metadata and XFS filesystem. Do not point it at a boot volume or an already populated hot tier.
 
 The generated inventory also sets `lancedb_host_firewall_source_cidrs` to the

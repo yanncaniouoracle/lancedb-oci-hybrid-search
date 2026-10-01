@@ -28,7 +28,7 @@
       - python3-venv
       - xfsprogs
     state: present
-    update_cache: true
+    update_cache: "{{ lancedb_update_package_cache | bool }}"
 
 - name: Install the persistent search API firewall helper
   ansible.builtin.template:
