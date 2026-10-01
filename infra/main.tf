@@ -244,7 +244,8 @@ resource "oci_functions_function" "object_event_router" {
   display_name   = "${var.deployment_name}-object-event-router"
 
   source_details {
-    image = var.ingestion_function_image
+    image       = var.ingestion_function_image
+    source_type = "CONTAINER_IMAGE"
   }
   memory_in_mbs  = var.ingestion_function_memory_mbs
   timeout_in_seconds = 30
