@@ -46,7 +46,9 @@ def parse_object_event(payload: dict[str, Any]) -> ObjectEvent:
         operation="delete" if event_type == DELETE else "upsert",
         bucket=str(bucket),
         object_key=str(object_key),
-        object_version=details.get("versionId") or details.get("eTag"),
+        # ETag is returned by ListObjects, so it is the comparison token used
+        # by reconciliation.  OCI version IDs are not exposed by ListObjects.
+        object_version=details.get("eTag") or details.get("versionId"),
         event_time=payload.get("eventTime") or payload.get("time"),
     )
 

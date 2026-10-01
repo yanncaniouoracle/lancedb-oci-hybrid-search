@@ -33,6 +33,7 @@ class ObjectStorageEventTests(unittest.TestCase):
 
         self.assertEqual(event.operation, "upsert")
         self.assertEqual(event.source_uri, "s3://lancedb-cold/images/sample.bin")
+        self.assertEqual(event.object_version, "etag-123")
         self.assertEqual(route["table"], "image_vectors")
 
     def test_delete_event_is_normalized(self) -> None:
