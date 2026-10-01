@@ -254,6 +254,14 @@ variables:
       Requires an existing, narrowly scoped dynamic group containing the service
       instances.
     default: false
+  create_function_queue_policy:
+    type: boolean
+    title: Create Function Queue policy
+    description: >-
+      Enable only when the current user is authorized to create IAM policies.
+      Leave disabled when the tenancy provides the Function resource-principal
+      queue-push policy centrally.
+    default: false
   dynamic_group_name:
     type: string
     title: Existing dynamic-group name

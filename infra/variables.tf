@@ -161,6 +161,12 @@ variable "create_instance_principal_policy" {
   default     = false
 }
 
+variable "create_function_queue_policy" {
+  description = "Create the OCI Functions resource-principal policy that allows queue-push. Set false when a tenancy-managed policy already grants this access."
+  type        = bool
+  default     = false
+}
+
 variable "dynamic_group_name" {
   description = "Existing dynamic-group name containing the search instances. The stack deliberately does not create a broad dynamic-group rule."
   type        = string

@@ -73,6 +73,11 @@ by stable object ID and should be configured with an approved embedding provider
 before production. The included deterministic provider is only a lifecycle and
 replica-synchronization test harness.
 
+The Function must have an existing IAM policy granting its resource principal
+`queue-push` access to the ingestion Queue. Set `create_function_queue_policy`
+only when the deployment identity is authorized to create IAM policies; it is
+disabled by default for centrally governed tenancies.
+
 The initial target table is created on first ingest if it does not exist, with
 `id`, `source_uri`, `object_version`, `event_time`, and `vector` columns. An
 existing table must expose compatible columns and use the configured vector

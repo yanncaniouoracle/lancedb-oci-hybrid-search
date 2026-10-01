@@ -328,7 +328,7 @@ resource "oci_identity_policy" "search_queue_consume" {
 }
 
 resource "oci_identity_policy" "function_queue_publish" {
-  count          = var.enable_object_event_ingestion ? 1 : 0
+  count          = var.create_function_queue_policy && var.enable_object_event_ingestion ? 1 : 0
   compartment_id = var.compartment_ocid
   name           = "${var.deployment_name}-function-queue-publish"
   description    = "Allow only Functions resource principals in this compartment to publish Object Storage events to the ingestion queue."

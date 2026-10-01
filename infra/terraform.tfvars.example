@@ -31,6 +31,9 @@ object_storage_prefix        = "datasets/"
 # scoped dynamic group.
 create_instance_principal_policy = false
 dynamic_group_name              = null
+# Leave false when the tenancy centrally manages Functions resource-principal
+# queue policies.
+create_function_queue_policy    = false
 
 enable_private_load_balancer = false
 
