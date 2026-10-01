@@ -52,22 +52,28 @@ def _message(operation: str, route: dict, key: str, version: str | None = None,
 
 def route_objects(client: Any, namespace: str, route: dict, routes: list[dict]) -> dict[str, tuple[str, str]]:
     """Return key -> (ETag, time) for exactly the keys owned by this route."""
-    page: str | None = None
+    # Object Storage ListObjects is cursor-based with ``start`` /
+    # ``next_start_with``; it does not use the generic OCI ``page`` parameter.
+    start: str | None = None
     result: dict[str, tuple[str, str]] = {}
     while True:
+        kwargs = {
+            "prefix": str(route.get("prefix", "")),
+            "fields": "name,etag,timeCreated",
+        }
+        if start:
+            kwargs["start"] = start
         response = client.list_objects(
             namespace,
             route["bucket"],
-            prefix=str(route.get("prefix", "")),
-            fields="name,etag,timeCreated",
-            page=page,
+            **kwargs,
         )
         for item in response.data.objects:
             event = ObjectEvent("reconcile", "upsert", route["bucket"], item.name, item.etag, _iso8601(item.time_created))
             if route_event(event, routes) == route:
                 result[item.name] = (item.etag or "", _iso8601(item.time_created))
-        page = response.headers.get("opc-next-page")
-        if not page:
+        start = response.data.next_start_with
+        if not start:
             return result
 
 
