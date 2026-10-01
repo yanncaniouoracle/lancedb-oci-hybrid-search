@@ -242,7 +242,10 @@ resource "oci_functions_function" "object_event_router" {
   count          = var.enable_object_event_ingestion ? 1 : 0
   application_id = oci_functions_application.object_event_router[0].id
   display_name   = "${var.deployment_name}-object-event-router"
-  image          = var.ingestion_function_image
+
+  source_details {
+    image = var.ingestion_function_image
+  }
   memory_in_mbs  = var.ingestion_function_memory_mbs
   timeout_in_seconds = 30
   config = {
