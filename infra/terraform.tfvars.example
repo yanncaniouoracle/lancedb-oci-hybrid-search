@@ -22,6 +22,8 @@ hot_tier_volume_size_gb = 500
 hot_tier_vpus_per_gb    = 10
 
 object_storage_bucket_name   = "lancedb-cold"
+# Set false only when this bucket existed before the first stack apply. Never
+# switch an existing managed stack from true to false.
 create_object_storage_bucket = false
 object_storage_prefix        = "datasets/"
 

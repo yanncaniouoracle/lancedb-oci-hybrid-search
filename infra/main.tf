@@ -217,6 +217,11 @@ resource "oci_objectstorage_bucket" "raw" {
   storage_tier   = "Standard"
   object_events_enabled = var.enable_object_event_ingestion
   freeform_tags  = local.tags
+
+  # Prevent raw-payload deletion when an existing stack is reconfigured.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "oci_queue_queue" "object_events" {

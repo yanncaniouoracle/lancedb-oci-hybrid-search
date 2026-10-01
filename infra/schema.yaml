@@ -238,6 +238,10 @@ variables:
   create_object_storage_bucket:
     type: boolean
     title: Create the raw-payload bucket
+    description: >-
+      Set false only when the bucket existed before the first stack apply and
+      remains outside Terraform state. Do not switch an existing managed stack
+      from true to false.
     default: false
   object_storage_prefix:
     type: string

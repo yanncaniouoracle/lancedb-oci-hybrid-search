@@ -144,7 +144,7 @@ variable "object_storage_bucket_name" {
 }
 
 variable "create_object_storage_bucket" {
-  description = "Create object_storage_bucket_name. Set false when it already exists."
+  description = "Create object_storage_bucket_name only on an initial deployment when it is not already managed by this stack. Do not switch an existing stack from true to false, because that proposes deletion of its managed bucket."
   type        = bool
   default     = false
 }
