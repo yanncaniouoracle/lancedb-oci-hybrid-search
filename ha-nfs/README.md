@@ -1,9 +1,16 @@
 # HA-NFS alternative: shared LanceDB table on Block Volume
 
-This directory is an **overlay for the OCI HA-NFS reference deployment**.  It
-is the alternative to the `infra/` Search Service on Compute stack: GPU or
-application nodes mount a shared NFSv4.1 export and open the LanceDB table
-directly.  There is no FastAPI search service and no OCI Load Balancer.
+The deployable, single ORM stack is now the
+[`yanncaniouoracle/lancedb-oci-nfs`](https://github.com/yanncaniouoracle/lancedb-oci-nfs)
+fork. It extends the OCI HA-NFS reference implementation with the LanceDB
+event pipeline and Pacemaker-owned data plane. Use that repository as the
+Resource Manager configuration source.
+
+This directory remains as the design reference and standalone overlay source.
+The architecture is the alternative to the `infra/` Search Service on Compute
+stack: GPU or application nodes mount a shared NFSv4.1 export and open the
+LanceDB table directly. There is no FastAPI search service and no OCI Load
+Balancer.
 
 ```text
 GPU/application nodes -- NFSv4.1 --> HA VIP --> active NFS server
@@ -28,46 +35,38 @@ to `127.0.0.1`, so there is one writer to the shared table.  Pacemaker moves
 all of those resources together during a failover.  GPU nodes are read-only
 LanceDB clients unless the workload has an explicit single-writer procedure.
 
-## Create the second stack (do not apply yet)
+## Create the second stack
 
-1. Obtain the OCI HA-NFS project at a reviewed release:
-
-   ```bash
-   git clone https://github.com/oracle-quickstart/oci-nfs.git
-   cd oci-nfs
-   ```
-
-2. Copy [`terraform.tfvars.example`](terraform.tfvars.example) to
-   `terraform.tfvars` in that checkout and set OCIDs, AD, image/shape and
-   subnet values.  It configures **HA**, two shared 500 GB Balanced volumes,
-   LVM striping, and no project-created client nodes.  Existing GPU nodes are
-   added later to this overlay inventory.
-
-3. Apply the upstream stack.  Its generated inventory is the input for the
-   overlay.  Add the GPU nodes to the `[gpu_nodes]` group and values from
-   [`ansible/group_vars/all.yml.example`](ansible/group_vars/all.yml.example).
-
-4. Run the upstream `playbooks/site.yml` first.  Then run this overlay:
+1. Create an ORM stack from the integrated repository:
 
    ```bash
-   ansible-galaxy collection install -r ansible/requirements.yml
-   ansible-playbook -i inventory/hosts.ini \
-     ansible/playbooks/lancedb-ha-nfs-overlay.yml
+   git clone https://github.com/yanncaniouoracle/lancedb-oci-nfs.git
+   cd lancedb-oci-nfs
    ```
 
-The overlay intentionally refuses to proceed until the upstream `nfsgroup`
-Pacemaker resource group is present.  It does not create, reformat or attach a
-Block Volume; therefore it cannot accidentally overwrite the shared NFS data
-plane.
+2. Set the NFS HA fields and the LanceDB data-plane fields in the ORM UI. The
+   storage configuration is **HA**, two shared 500 GB Balanced volumes, and
+   LVM striping. Use a dedicated Function/Queue route for this alternative.
+
+3. Apply the single integrated stack. Its built-in provisioning configures HA
+   NFS, the Object Storage event path, and the Pacemaker-owned LanceDB writer.
+
+4. Existing GPU nodes are external to the stack and require their own SSH
+   access. Run the included `playbooks/lancedb-gpu-mount.yml` playbook from the
+   fork’s bastion or an administration host after adding them to `[gpu_nodes]`.
+
+   ```bash
+   ansible-playbook -i gpu-inventory playbooks/lancedb-gpu-mount.yml
+   ```
+
+The GPU mount role refuses a local filesystem fallback. It uses a hard NFSv4.1
+mount, which is important during a Pacemaker failover.
 
 ## Required OCI event resources
 
-[`event-pipeline/`](event-pipeline) is a small, separate Terraform component
-for the NFS alternative.  It creates a distinct Function -> Queue -> Event
-Rule pipeline using the same pre-built router image.  The queue-consumer dynamic
-group must include **both NFS servers**, because either may become active.  Its
-outputs become `lancedb_ingestion_queue_id` and
-`lancedb_ingestion_queue_endpoint` in the overlay group variables.
+The integrated fork creates a distinct Function -> Queue -> Event Rule pipeline
+using the pre-built router image. The queue-consumer dynamic group must include
+**both NFS servers**, because either may become active.
 
 Do **not** point the direct-BV search-service controller and the HA-NFS
 controller at the same Queue: OCI Queue delivers each message to one consumer,
