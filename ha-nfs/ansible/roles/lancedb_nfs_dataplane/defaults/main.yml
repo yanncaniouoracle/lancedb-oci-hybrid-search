@@ -1,0 +1,19 @@
+---
+lancedb_service_git_url: ""
+lancedb_service_git_version: main
+lancedb_service_user: ubuntu
+lancedb_service_group: ubuntu
+lancedb_install_path: /opt/oci-lancedb-hybrid
+lancedb_virtualenv_path: "{{ lancedb_install_path }}/.venv"
+lancedb_nfs_database_path: /mnt/nfsshare/exports/lancedb-hot
+lancedb_nfs_table_name: ""
+lancedb_nfs_vector_dimensions: 768
+lancedb_ingestion_enabled: false
+lancedb_ingestion_queue_id: ""
+lancedb_ingestion_queue_endpoint: ""
+lancedb_source_routes: []
+lancedb_oci_bucket: ""
+lancedb_reconciliation_enabled: true
+lancedb_reconciliation_interval: 1h
+lancedb_ingestion_worker_port: 8090
+lancedb_nfs_pacemaker_group: "{{ nfs_pacemaker_group | default('nfsgroup') }}"

@@ -1,0 +1,9 @@
+region                  = "us-ashburn-1"
+compartment_ocid        = "ocid1.compartment..."
+deployment_name         = "lancedb-ha-nfs"
+functions_subnet_ocid   = "ocid1.subnet..."
+ingestion_function_image = "iad.ocir.io/<namespace>/lancedb-oci-hybrid-search/lancedb-object-event-router:0.1.0"
+
+# Set true only when policy creation is permitted.  Otherwise request the
+# narrowly scoped queue-push policy from the tenancy administrator.
+create_function_queue_policy = false

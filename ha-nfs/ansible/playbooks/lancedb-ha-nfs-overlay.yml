@@ -1,0 +1,12 @@
+---
+- name: Install the LanceDB data plane as HA NFS resources
+  hosts: storage
+  become: true
+  roles:
+    - lancedb_nfs_dataplane
+
+- name: Mount the HA NFS LanceDB table on externally managed GPU nodes
+  hosts: gpu_nodes
+  become: true
+  roles:
+    - lancedb_nfs_client

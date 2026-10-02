@@ -1,0 +1,36 @@
+# Use this file with https://github.com/oracle-quickstart/oci-nfs as the
+# second Resource Manager stack.  Supply the remaining tenancy, subnet, image,
+# SSH and shape values for the target environment.
+
+fs_type = "Persistent"
+fs_ha   = true
+
+# Existing VCN and private subnet containing the NFS servers.  GPU nodes may
+# use a different private subnet in the same VCN; its CIDR is exported below.
+use_existing_vcn  = "true"
+vcn_id            = "ocid1.vcn..."
+storage_subnet_id = "ocid1.subnet..."
+
+# HA NFS requires a quorum member.  The upstream stack creates it.
+persistent_storage_server_shape = "VM.Standard.E5.Flex"
+storage_server_ocpus             = 8
+storage_server_memory            = 64
+quorum_server_shape              = "VM.Standard.E5.Flex"
+quorum_server_ocpus              = 1
+
+# The shared hot tier: two volumes form one 1 TB LVM stripe set.  In HA mode
+# each volume is multi-attached to both NFS servers; it is not duplicated.
+fs1_disk_perf_tier = "Balanced"
+fs1_disk_count     = 2
+fs1_disk_size      = 500
+block_size         = 256
+
+# GPU nodes already exist, so the upstream stack must not create test clients.
+create_compute_nodes = false
+client_node_count    = 0
+
+# The overlay supplies this CIDR to the upstream NFS export configuration.
+# Replace with the private subnet CIDR of the GPU/application nodes.
+# nfs_export_client_cidrs = ["10.0.0.0/24"]
+
+mount_point = "/mnt/nfs"

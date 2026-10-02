@@ -1,0 +1,50 @@
+---
+- name: Validate HA NFS client configuration
+  ansible.builtin.assert:
+    that:
+      - nfs_server_vip | default('') | length > 0
+      - nfs_export_path | default('') | length > 0
+      - lancedb_nfs_mount_path | default('') | length > 0
+    fail_msg: >-
+      Set nfs_server_vip, nfs_export_path and lancedb_nfs_mount_path before
+      mounting the HA NFS LanceDB export.
+
+- name: Install NFSv4 client utilities
+  ansible.builtin.apt:
+    name:
+      - nfs-common
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Create the LanceDB NFS mount path
+  ansible.builtin.file:
+    path: "{{ lancedb_nfs_mount_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Mount the HA NFS export persistently
+  ansible.posix.mount:
+    path: "{{ lancedb_nfs_mount_path }}"
+    src: "{{ nfs_server_vip }}:{{ nfs_export_path }}"
+    fstype: nfs4
+    opts: "{{ lancedb_nfs_mount_options }}"
+    state: mounted
+  register: lancedb_nfs_mount
+  retries: 6
+  delay: 10
+  until: lancedb_nfs_mount is succeeded
+
+- name: Verify the mount resolves to NFS
+  ansible.builtin.command:
+    cmd: "findmnt --noheadings --target {{ lancedb_nfs_mount_path }} --output FSTYPE,SOURCE"
+  changed_when: false
+  register: lancedb_nfs_mount_check
+
+- name: Assert that the LanceDB path is not a local filesystem
+  ansible.builtin.assert:
+    that:
+      - "'nfs' in lancedb_nfs_mount_check.stdout"
+    fail_msg: "{{ lancedb_nfs_mount_path }} is not mounted through NFS. Refusing a client-side local-table fallback."

@@ -1,0 +1,191 @@
+---
+- name: Validate the upstream HA NFS cluster and LanceDB configuration
+  ansible.builtin.assert:
+    that:
+      - groups['storage'] | length == 2
+      - lancedb_service_git_url | length > 0
+      - lancedb_nfs_table_name | length > 0
+      - lancedb_oci_bucket | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_ingestion_queue_id | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_ingestion_queue_endpoint | length > 0
+      - not lancedb_ingestion_enabled | bool or lancedb_source_routes | length > 0
+    fail_msg: >-
+      This overlay requires the two-node upstream storage group, a versioned
+      LanceDB source, table and bucket settings, plus Queue and routes when
+      ingestion is enabled.
+
+- name: Verify the upstream Pacemaker NFS group exists
+  ansible.builtin.command:
+    cmd: "pcs resource config {{ lancedb_nfs_pacemaker_group }}"
+  changed_when: false
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+
+- name: Install LanceDB data-plane dependencies
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - git
+      - python3-pip
+      - python3-venv
+    state: present
+    update_cache: true
+  when: ansible_facts.os_family == 'Debian'
+
+- name: Create the LanceDB installation directory
+  ansible.builtin.file:
+    path: "{{ lancedb_install_path }}"
+    state: directory
+    owner: "{{ lancedb_service_user }}"
+    group: "{{ lancedb_service_group }}"
+    mode: '0755'
+
+- name: Fetch the versioned LanceDB data-plane source
+  ansible.builtin.git:
+    repo: "{{ lancedb_service_git_url }}"
+    dest: "{{ lancedb_install_path }}"
+    version: "{{ lancedb_service_git_version }}"
+    force: false
+  become_user: "{{ lancedb_service_user }}"
+
+- name: Install the LanceDB ingestion environment
+  ansible.builtin.pip:
+    name: ".[ingestion]"
+    chdir: "{{ lancedb_install_path }}"
+    virtualenv: "{{ lancedb_virtualenv_path }}"
+    virtualenv_command: python3 -m venv
+    extra_args: --upgrade
+  become_user: "{{ lancedb_service_user }}"
+
+- name: Create the shared table directory on the active NFS resource owner
+  ansible.builtin.file:
+    path: "{{ lancedb_nfs_database_path }}"
+    state: directory
+    owner: "{{ lancedb_service_user }}"
+    group: "{{ lancedb_service_group }}"
+    mode: '0775'
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+
+- name: Create LanceDB configuration directory
+  ansible.builtin.file:
+    path: /etc/lancedb-nfs
+    state: directory
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0750'
+
+- name: Render the HA NFS data-plane environment
+  ansible.builtin.template:
+    src: lancedb-nfs.env.j2
+    dest: /etc/lancedb-nfs/lancedb.env
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0640'
+
+- name: Render the source-routing registry
+  ansible.builtin.copy:
+    content: "{{ lancedb_source_routes | to_json }}\n"
+    dest: /etc/lancedb-nfs/source-routes.json
+    owner: root
+    group: "{{ lancedb_service_group }}"
+    mode: '0640'
+  when: lancedb_ingestion_enabled | bool
+
+- name: Install Pacemaker-managed data-plane unit files
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - lancedb-nfs-ingestion-worker.service
+    - lancedb-nfs-ingestion-controller.service
+    - lancedb-nfs-reconciliation.service
+    - lancedb-nfs-reconciliation.timer
+
+- name: Disable standalone data-plane services before Pacemaker owns them
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+    daemon_reload: true
+  loop:
+    - lancedb-nfs-ingestion-worker.service
+    - lancedb-nfs-ingestion-controller.service
+    - lancedb-nfs-reconciliation.service
+    - lancedb-nfs-reconciliation.timer
+
+- name: Create the single shared-table ingestion worker resource
+  ansible.builtin.command: >-
+    pcs resource create lancedb-nfs-ingestion-worker
+    systemd:lancedb-nfs-ingestion-worker.service
+    op monitor interval=30s timeout=60s
+    --group {{ lancedb_nfs_pacemaker_group }}
+  args:
+    creates: /var/lib/pacemaker/.lancedb-nfs-worker-created
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when: lancedb_ingestion_enabled | bool
+
+- name: Mark the ingestion worker resource as created
+  ansible.builtin.file:
+    path: /var/lib/pacemaker/.lancedb-nfs-worker-created
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when: lancedb_ingestion_enabled | bool
+
+- name: Create the single active queue controller resource
+  ansible.builtin.command: >-
+    pcs resource create lancedb-nfs-ingestion-controller
+    systemd:lancedb-nfs-ingestion-controller.service
+    op monitor interval=30s timeout=60s
+    --group {{ lancedb_nfs_pacemaker_group }}
+  args:
+    creates: /var/lib/pacemaker/.lancedb-nfs-controller-created
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when: lancedb_ingestion_enabled | bool
+
+- name: Mark the queue controller resource as created
+  ansible.builtin.file:
+    path: /var/lib/pacemaker/.lancedb-nfs-controller-created
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when: lancedb_ingestion_enabled | bool
+
+- name: Create the single active reconciliation resource
+  ansible.builtin.command: >-
+    pcs resource create lancedb-nfs-reconciliation
+    systemd:lancedb-nfs-reconciliation.timer
+    op monitor interval=60s timeout=120s
+    --group {{ lancedb_nfs_pacemaker_group }}
+  args:
+    creates: /var/lib/pacemaker/.lancedb-nfs-reconciliation-created
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when:
+    - lancedb_ingestion_enabled | bool
+    - lancedb_reconciliation_enabled | bool
+
+- name: Mark the reconciliation resource as created
+  ansible.builtin.file:
+    path: /var/lib/pacemaker/.lancedb-nfs-reconciliation-created
+    state: touch
+    owner: root
+    group: root
+    mode: '0600'
+  run_once: true
+  delegate_to: "{{ groups['storage'][0] }}"
+  when:
+    - lancedb_ingestion_enabled | bool
+    - lancedb_reconciliation_enabled | bool

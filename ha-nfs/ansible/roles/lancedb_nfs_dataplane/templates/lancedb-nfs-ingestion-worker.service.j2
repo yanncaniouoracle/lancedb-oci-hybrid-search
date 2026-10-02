@@ -1,0 +1,15 @@
+[Unit]
+Description=Pacemaker-managed OCI LanceDB shared-table ingestion worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ lancedb_service_user }}
+Group={{ lancedb_service_group }}
+WorkingDirectory={{ lancedb_install_path }}
+EnvironmentFile=/etc/lancedb-nfs/lancedb.env
+ExecStart={{ lancedb_virtualenv_path }}/bin/oci-lancedb-ingestion-worker
+Restart=no
+NoNewPrivileges=true
+PrivateTmp=true

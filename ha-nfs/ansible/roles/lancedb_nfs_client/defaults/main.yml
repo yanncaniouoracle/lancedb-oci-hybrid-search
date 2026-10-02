@@ -1,0 +1,3 @@
+---
+lancedb_nfs_mount_path: /mnt/lancedb-hot
+lancedb_nfs_mount_options: "hard,_netdev,nfsvers=4.1,proto=tcp,noatime"

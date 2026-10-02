@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile Object Storage with the HA NFS LanceDB table
+After=network-online.target lancedb-nfs-ingestion-controller.service
+
+[Service]
+Type=oneshot
+User={{ lancedb_service_user }}
+Group={{ lancedb_service_group }}
+EnvironmentFile=/etc/lancedb-nfs/lancedb.env
+ExecStart={{ lancedb_virtualenv_path }}/bin/oci-lancedb-reconcile

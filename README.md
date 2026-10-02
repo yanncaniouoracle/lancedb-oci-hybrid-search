@@ -35,6 +35,16 @@ non-shareable Block Volumes, Object Storage access, NSGs, and an optional
 private load balancer. The [`ansible/`](ansible) role configures node-local
 LVM/XFS and the service. See the [deployment guide](docs/terraform-ansible-deployment.md).
 
+## HA-NFS alternative
+
+[`ha-nfs/`](ha-nfs) provides the alternative shared-filesystem design. It uses
+the OCI HA-NFS reference stack for two active/passive NFS servers, quorum,
+fencing, a movable VIP, two shared 500 GB Balanced Block Volumes and a striped
+XFS filesystem. Its LanceDB overlay mounts the NFS export on existing GPU
+nodes and places the ingestion worker, Queue controller, and reconciliation
+timer in the same Pacemaker resource group as the filesystem. It deliberately
+has no search service or load balancer. See the [HA-NFS guide](ha-nfs/README.md).
+
 ## Quick start
 
 Follow [the OCI deployment guide](docs/deployment-oci.md). The standard validation command on a GPU node is:
