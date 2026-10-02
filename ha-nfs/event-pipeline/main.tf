@@ -24,16 +24,12 @@ resource "oci_functions_application" "router" {
 }
 
 resource "oci_functions_function" "router" {
-  application_id      = oci_functions_application.router.id
-  display_name        = "${var.deployment_name}-object-event-router"
-  memory_in_mbs       = var.function_memory_mbs
-  timeout_in_seconds  = 30
-  freeform_tags       = local.tags
-
-  source_details {
-    image       = var.ingestion_function_image
-    source_type = "CONTAINER_IMAGE"
-  }
+  application_id     = oci_functions_application.router.id
+  display_name       = "${var.deployment_name}-object-event-router"
+  memory_in_mbs      = var.function_memory_mbs
+  timeout_in_seconds = 30
+  freeform_tags      = local.tags
+  image              = var.ingestion_function_image
 
   config = {
     QUEUE_ENDPOINT = oci_queue_queue.object_events.messages_endpoint

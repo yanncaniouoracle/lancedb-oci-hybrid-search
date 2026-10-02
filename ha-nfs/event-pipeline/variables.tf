@@ -17,12 +17,24 @@ variable "ingestion_function_image" {
   type        = string
   description = "Pre-built OCIR router image, preferably an immutable digest."
 }
-variable "queue_retention_seconds" { type = number, default = 345600 }
-variable "queue_visibility_seconds" { type = number, default = 120 }
-variable "function_memory_mbs" { type = number, default = 256 }
+variable "queue_retention_seconds" {
+  type    = number
+  default = 345600
+}
+variable "queue_visibility_seconds" {
+  type    = number
+  default = 120
+}
+variable "function_memory_mbs" {
+  type    = number
+  default = 256
+}
 variable "create_function_queue_policy" {
   type        = bool
   default     = false
   description = "Create only when tenancy policy administration is authorized."
 }
-variable "common_freeform_tags" { type = map(string), default = {} }
+variable "common_freeform_tags" {
+  type    = map(string)
+  default = {}
+}
