@@ -25,7 +25,9 @@ The service returns top-k identifiers, metadata, and source URIs. Original docum
 The stack creates a second private TCP listener for gRPC on port `50051` by
 default. TCP forwarding preserves the gRPC HTTP/2 stream end-to-end and avoids
 requiring a certificate for the private feasibility deployment. GPU clients use
-one long-lived `grpc.insecure_channel(<private-lb-ip>:50051)`. For production
+one small pool of long-lived `grpc.insecure_channel(<private-lb-ip>:50051)`
+connections. The TCP listener selects a backend per TCP flow, so use at least
+one channel per search-node replica. For production
 cross-boundary traffic, add OCI certificate-managed TLS/mTLS and use an OCI
 gRPC listener instead of the TCP pass-through listener.
 
@@ -167,7 +169,8 @@ and shard routing remain controlled data-plane operations.
    ```bash
    oci-lancedb-benchmark-sift1m-grpc \
      --endpoint <private-lb-ip>:50051 \
-     --queries /home/ubuntu/sift_query.fvecs --count 1000 --concurrency 16
+     --queries /home/ubuntu/sift_query.fvecs --count 1000 --concurrency 16 \
+     --channels <search-node-count>
    ```
 4. Run query, p95/p99 latency, Block Volume IOPS/throughput, Object Storage request-rate, and GPU-utilization tests.
 5. Configure a snapshot/export, recovery, replica rebuild, and version-reconciliation process before accepting production traffic.

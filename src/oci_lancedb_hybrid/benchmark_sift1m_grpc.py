@@ -37,41 +37,58 @@ def main() -> None:
     parser.add_argument("--queries", required=True)
     parser.add_argument("--count", type=int, default=1000)
     parser.add_argument("--concurrency", type=int, default=16)
+    parser.add_argument(
+        "--channels",
+        type=int,
+        default=1,
+        help="Persistent gRPC channels; use at least the number of TCP-LB backends.",
+    )
     parser.add_argument("--top-k", type=int, default=10)
     args = parser.parse_args()
 
     vectors = read_fvecs(args.queries, args.count)
     if len(vectors) != args.count:
         raise SystemExit(f"Expected {args.count} query vectors, found {len(vectors)}")
+    if args.channels < 1:
+        raise SystemExit("--channels must be at least one")
 
-    # gRPC channels are thread-safe: all application workers intentionally use
-    # the same persistent HTTP/2 connection pool to the private load balancer.
-    with grpc.insecure_channel(args.endpoint) as channel:
-        stub = lancedb_search_pb2_grpc.LanceSearchStub(channel)
+    # A channel is thread-safe. However, the feasibility deployment uses an
+    # L4 TCP load balancer, which selects a backend per TCP flow. Maintain a
+    # small persistent channel pool (normally one channel per backend) so a
+    # single GPU/application VM can reach every replica without reconnecting
+    # per request.
+    channels = [grpc.insecure_channel(args.endpoint) for _ in range(args.channels)]
+    stubs = [lancedb_search_pb2_grpc.LanceSearchStub(channel) for channel in channels]
 
-        def execute(vector: list[float]) -> None:
-            response = stub.Search(
-                lancedb_search_pb2.SearchRequest(vector=vector, top_k=args.top_k),
-                timeout=120,
-            )
-            if response.count != args.top_k:
-                raise RuntimeError(f"Expected {args.top_k} results, received {response.count}")
+    def execute(index_and_vector: tuple[int, list[float]]) -> None:
+        index, vector = index_and_vector
+        response = stubs[index % len(stubs)].Search(
+            lancedb_search_pb2.SearchRequest(vector=vector, top_k=args.top_k),
+            timeout=120,
+        )
+        if response.count != args.top_k:
+            raise RuntimeError(f"Expected {args.top_k} results, received {response.count}")
 
+    try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-            list(pool.map(execute, [vectors[0]] * args.concurrency))
+            list(pool.map(execute, enumerate([vectors[0]] * args.concurrency)))
 
-            def timed(vector: list[float]) -> float:
+            def timed(index_and_vector: tuple[int, list[float]]) -> float:
                 started = time.perf_counter()
-                execute(vector)
+                execute(index_and_vector)
                 return (time.perf_counter() - started) * 1000
 
             wall_start = time.perf_counter()
-            latencies = list(pool.map(timed, vectors))
+            latencies = list(pool.map(timed, enumerate(vectors)))
             wall_seconds = time.perf_counter() - wall_start
+    finally:
+        for channel in channels:
+            channel.close()
 
     print(json.dumps({
         "queries": len(latencies),
         "concurrency": args.concurrency,
+        "channels": args.channels,
         "top_k": args.top_k,
         "qps": round(len(latencies) / wall_seconds, 2),
         "latency_ms": {
