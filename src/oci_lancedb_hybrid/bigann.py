@@ -10,7 +10,10 @@ from pathlib import Path
 import numpy as np
 
 DIMENSIONS = 128
-RECORD_BYTES = DIMENSIONS + 1
+# fvecs and bvecs both encode the dimension as a little-endian int32. BigANN
+# then stores 128 unsigned-byte values, making each record 132 bytes.
+HEADER_BYTES = 4
+RECORD_BYTES = HEADER_BYTES + DIMENSIONS
 BASE_URL = "ftp://ftp.irisa.fr/local/texmex/corpus/bigann_base.bvecs.gz"
 QUERY_URL = "ftp://ftp.irisa.fr/local/texmex/corpus/bigann_query.bvecs.gz"
 
@@ -34,9 +37,10 @@ def iter_bvec_batches(
                     f"BigANN source ended after {count - remaining:,} vectors; expected {count:,}"
                 )
             encoded = np.frombuffer(payload, dtype=np.uint8).reshape(rows, RECORD_BYTES)
-            if not np.all(encoded[:, 0] == DIMENSIONS):
+            dimensions = np.frombuffer(payload, dtype="<i4").reshape(rows, 33)[:, 0]
+            if not np.all(dimensions == DIMENSIONS):
                 raise ValueError("BigANN source contains a non-128-dimensional bvec record")
-            yield encoded[:, 1:].astype(np.float32)
+            yield encoded[:, HEADER_BYTES:].astype(np.float32)
             remaining -= rows
 
 
@@ -57,7 +61,8 @@ def read_bvecs(path: str | Path, limit: int | None = None) -> np.ndarray:
     if encoded.size == 0 or encoded.size % RECORD_BYTES:
         raise ValueError(f"{path} is not a valid {DIMENSIONS}-dimensional bvecs file")
     rows = encoded.reshape(-1, RECORD_BYTES)
-    if not np.all(rows[:, 0] == DIMENSIONS):
+    dimensions = np.fromfile(path, dtype="<i4").reshape(-1, 33)[:, 0]
+    if not np.all(dimensions == DIMENSIONS):
         raise ValueError(f"{path} has a vector dimension other than {DIMENSIONS}")
-    values = rows[:, 1:].astype(np.float32)
+    values = rows[:, HEADER_BYTES:].astype(np.float32)
     return values[:limit] if limit else values
