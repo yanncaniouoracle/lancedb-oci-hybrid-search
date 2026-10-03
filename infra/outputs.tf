@@ -8,6 +8,11 @@ output "search_service_endpoint" {
   value       = var.enable_private_load_balancer ? "http://${oci_load_balancer_load_balancer.search[0].ip_address_details[0].ip_address}:${var.service_port}" : null
 }
 
+output "search_service_grpc_endpoint" {
+  description = "Private TCP/gRPC endpoint when the load balancer is enabled. Use grpc.insecure_channel for this private feasibility deployment."
+  value       = var.enable_private_load_balancer ? "${oci_load_balancer_load_balancer.search[0].ip_address_details[0].ip_address}:${var.grpc_service_port}" : null
+}
+
 output "hot_volume_ids" {
   description = "Block Volume OCIDs grouped by search node."
   value = {

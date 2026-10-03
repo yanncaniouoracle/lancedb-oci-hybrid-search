@@ -19,6 +19,13 @@ lancedb_table_name: REPLACE_TABLE_NAME
 lancedb_vector_dimensions: 768
 lancedb_bind_host: 0.0.0.0
 lancedb_service_port: 8080
+lancedb_grpc_service_port: 50051
+# One gRPC server process per node; this is a request-thread pool, not a
+# second LanceDB replica. Benchmark before increasing it.
+lancedb_grpc_max_workers: 64
+# Start conservatively, then tune under representative load.  A worker is a
+# separate process with its own LanceDB connection and filesystem cache usage.
+lancedb_service_workers: 1
 
 # Use the CIDR of the private subnet containing the LB. Terraform's generated
 # inventory supplies this automatically; specify it explicitly for a manual

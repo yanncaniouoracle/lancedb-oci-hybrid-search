@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 DB_URI = os.environ.get("LANCEDB_URI", "/mnt/lancedb-hot/lancedb-hot")
 TABLE_NAME = os.environ.get("LANCEDB_TABLE", "mnist_image_vectors")
 VECTOR_DIMENSIONS = int(os.environ.get("LANCEDB_VECTOR_DIMENSIONS", "784"))
+WORKERS = int(os.environ.get("LANCEDB_WORKERS", "1"))
 
 
 class SearchRequest(BaseModel):
@@ -54,8 +55,11 @@ def search(request: SearchRequest) -> dict[str, object]:
 
 
 def run() -> None:
+    if WORKERS < 1:
+        raise RuntimeError("LANCEDB_WORKERS must be at least 1")
     uvicorn.run(
         "oci_lancedb_hybrid.service:app",
         host=os.environ.get("LANCEDB_BIND_HOST", "127.0.0.1"),
         port=int(os.environ.get("LANCEDB_PORT", "8080")),
+        workers=WORKERS,
     )

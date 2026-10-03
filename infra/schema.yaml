@@ -67,6 +67,7 @@ variableGroups:
       - ${search_service_count}
       - ${boot_volume_size_gb}
       - ${service_port}
+      - ${grpc_service_port}
   - title: Block Volume hot tier
     variables:
       - ${hot_tier_volume_count}
@@ -206,6 +207,16 @@ variables:
     minimum: 1
     maximum: 65535
     default: 8080
+    required: true
+  grpc_service_port:
+    type: integer
+    title: Private gRPC search-service port
+    description: >-
+      A private TCP load-balancer listener forwards gRPC HTTP/2 traffic without
+      protocol translation. Keep this port private to the GPU/application subnet.
+    minimum: 1
+    maximum: 65535
+    default: 50051
     required: true
   hot_tier_volume_count:
     type: integer

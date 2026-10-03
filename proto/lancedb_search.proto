@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package oci.lancedb.v1;
+
+service LanceSearch {
+  // Executes a nearest-neighbour search against the configured hot table.
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+message SearchRequest {
+  repeated float vector = 1;
+  uint32 top_k = 2;
+  string where = 3;
+}
+
+message SearchResult {
+  int64 id = 1;
+  string source_uri = 2;
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+  uint32 count = 2;
+}

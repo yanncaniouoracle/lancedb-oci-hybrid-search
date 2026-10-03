@@ -87,6 +87,21 @@ resource "oci_core_network_security_group_security_rule" "direct_client_ingress"
   }
 }
 
+resource "oci_core_network_security_group_security_rule" "direct_client_grpc_ingress" {
+  for_each                  = var.enable_private_load_balancer ? toset([]) : local.gpu_client_cidrs
+  network_security_group_id = oci_core_network_security_group.search.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = each.value
+  source_type               = "CIDR_BLOCK"
+  tcp_options {
+    destination_port_range {
+      min = var.grpc_service_port
+      max = var.grpc_service_port
+    }
+  }
+}
+
 resource "oci_core_network_security_group_security_rule" "load_balancer_to_search" {
   count                     = var.enable_private_load_balancer ? 1 : 0
   network_security_group_id = oci_core_network_security_group.search.id
@@ -98,6 +113,21 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_to_searc
     destination_port_range {
       min = var.service_port
       max = var.service_port
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "load_balancer_to_search_grpc" {
+  count                     = var.enable_private_load_balancer ? 1 : 0
+  network_security_group_id = oci_core_network_security_group.search.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = oci_core_network_security_group.load_balancer[0].id
+  source_type               = "NETWORK_SECURITY_GROUP"
+  tcp_options {
+    destination_port_range {
+      min = var.grpc_service_port
+      max = var.grpc_service_port
     }
   }
 }
@@ -121,6 +151,21 @@ resource "oci_core_network_security_group_security_rule" "load_balancer_health_c
   }
 }
 
+resource "oci_core_network_security_group_security_rule" "load_balancer_health_check_to_search_grpc" {
+  count                     = var.enable_private_load_balancer ? 1 : 0
+  network_security_group_id = oci_core_network_security_group.search.id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = data.oci_core_subnet.search.cidr_block
+  source_type               = "CIDR_BLOCK"
+  tcp_options {
+    destination_port_range {
+      min = var.grpc_service_port
+      max = var.grpc_service_port
+    }
+  }
+}
+
 resource "oci_core_network_security_group_security_rule" "client_to_load_balancer" {
   for_each                  = var.enable_private_load_balancer ? local.gpu_client_cidrs : toset([])
   network_security_group_id = oci_core_network_security_group.load_balancer[0].id
@@ -132,6 +177,21 @@ resource "oci_core_network_security_group_security_rule" "client_to_load_balance
     destination_port_range {
       min = var.service_port
       max = var.service_port
+    }
+  }
+}
+
+resource "oci_core_network_security_group_security_rule" "client_to_load_balancer_grpc" {
+  for_each                  = var.enable_private_load_balancer ? local.gpu_client_cidrs : toset([])
+  network_security_group_id = oci_core_network_security_group.load_balancer[0].id
+  direction                 = "INGRESS"
+  protocol                  = "6"
+  source                    = each.value
+  source_type               = "CIDR_BLOCK"
+  tcp_options {
+    destination_port_range {
+      min = var.grpc_service_port
+      max = var.grpc_service_port
     }
   }
 }
@@ -392,4 +452,43 @@ resource "oci_load_balancer_listener" "search" {
   default_backend_set_name = oci_load_balancer_backend_set.search[0].name
   port             = var.service_port
   protocol         = "HTTP"
+}
+
+# gRPC uses HTTP/2. The OCI private LB forwards it end-to-end as TCP so this
+# feasibility stack does not require certificate lifecycle resources. TLS/mTLS
+# can be introduced later with an OCI gRPC listener and certificate variables.
+resource "oci_load_balancer_backend_set" "search_grpc" {
+  count            = var.enable_private_load_balancer ? 1 : 0
+  load_balancer_id = oci_load_balancer_load_balancer.search[0].id
+  name             = "search-grpc"
+  policy           = "LEAST_CONNECTIONS"
+
+  health_checker {
+    protocol          = "TCP"
+    port              = var.grpc_service_port
+    retries           = 3
+    timeout_in_millis = 3000
+    interval_ms       = 10000
+  }
+}
+
+resource "oci_load_balancer_backend" "search_grpc" {
+  for_each         = var.enable_private_load_balancer ? local.search_nodes : {}
+  load_balancer_id = oci_load_balancer_load_balancer.search[0].id
+  backendset_name  = oci_load_balancer_backend_set.search_grpc[0].name
+  ip_address       = oci_core_instance.search[each.key].private_ip
+  port             = var.grpc_service_port
+  backup           = false
+  drain            = false
+  offline          = false
+  weight           = 1
+}
+
+resource "oci_load_balancer_listener" "search_grpc" {
+  count                    = var.enable_private_load_balancer ? 1 : 0
+  load_balancer_id         = oci_load_balancer_load_balancer.search[0].id
+  name                     = "search-grpc"
+  default_backend_set_name = oci_load_balancer_backend_set.search_grpc[0].name
+  port                     = var.grpc_service_port
+  protocol                 = "TCP"
 }

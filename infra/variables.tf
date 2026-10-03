@@ -92,6 +92,12 @@ variable "service_port" {
   default     = 8080
 }
 
+variable "grpc_service_port" {
+  description = "Private TCP port exposed by the gRPC search service. The private load balancer forwards HTTP/2 unchanged using a TCP listener."
+  type        = number
+  default     = 50051
+}
+
 variable "gpu_subnet_id" {
   description = "Private subnet containing GPU or application nodes allowed to call the search endpoint."
   type        = string

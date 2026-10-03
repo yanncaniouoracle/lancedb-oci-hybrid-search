@@ -7,17 +7,27 @@ This deployment is a separate stack from the GPU or Slurm cluster. Terraform cre
 ```text
 GPU or application subnet
           |
-          | private HTTP request
+          | private HTTP/JSON or gRPC/Protocol Buffers request
           v
 private load balancer (optional)
           |
           v
-search-service node(s) -- direct, non-shareable Block Volume(s) -- LVM/XFS -- LanceDB hot table
+HTTP service (8080) and gRPC service (50051) on search node(s)
+          |
+          v
+direct, non-shareable Block Volume(s) -- LVM/XFS -- LanceDB hot table
           |
           +-- instance principal --> OCI Object Storage raw payload bucket
 ```
 
 The service returns top-k identifiers, metadata, and source URIs. Original documents and media remain in Object Storage. A GPU node uses its own instance principal to retrieve a selected object; it does not mount the search database or receive the service node's Object Storage credentials.
+
+The stack creates a second private TCP listener for gRPC on port `50051` by
+default. TCP forwarding preserves the gRPC HTTP/2 stream end-to-end and avoids
+requiring a certificate for the private feasibility deployment. GPU clients use
+one long-lived `grpc.insecure_channel(<private-lb-ip>:50051)`. For production
+cross-boundary traffic, add OCI certificate-managed TLS/mTLS and use an OCI
+gRPC listener instead of the TCP pass-through listener.
 
 Every service node owns a local hot tier. Do not configure a Block Volume as shareable and do not mount it from GPU nodes. Scale uses explicit database shards and replicas, each with its own local hot tier, not a shared filesystem.
 
@@ -152,5 +162,12 @@ and shard routing remain controlled data-plane operations.
 1. Configure the bucket policy/dynamic group and verify `oci os ns get --auth instance_principal` from a service node.
 2. Load the hot LanceDB table and build the selected vector or full-text index.
 3. Verify `/healthz` from an allowed GPU/application node.
+   Verify the typed gRPC API as well:
+
+   ```bash
+   oci-lancedb-benchmark-sift1m-grpc \
+     --endpoint <private-lb-ip>:50051 \
+     --queries /home/ubuntu/sift_query.fvecs --count 1000 --concurrency 16
+   ```
 4. Run query, p95/p99 latency, Block Volume IOPS/throughput, Object Storage request-rate, and GPU-utilization tests.
 5. Configure a snapshot/export, recovery, replica rebuild, and version-reconciliation process before accepting production traffic.

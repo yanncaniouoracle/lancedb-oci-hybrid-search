@@ -11,8 +11,8 @@ ssh_public_key      = "ssh-ed25519 AAAA..."
 search_image_ocid   = "ocid1.image.oc1.iad.example"
 
 search_shape         = "VM.Standard.E5.Flex"
-search_ocpus         = 8
-search_memory_gb     = 64
+search_ocpus         = 2
+search_memory_gb     = 16
 search_service_count = 1
 
 # One 500 GB Balanced volume is a useful feasibility baseline. Increase the

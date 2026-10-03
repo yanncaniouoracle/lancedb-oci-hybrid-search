@@ -250,7 +250,9 @@
     virtualenv_command: python3 -m venv
     extra_args: --upgrade
   become_user: "{{ lancedb_service_user }}"
-  notify: Restart LanceDB search service
+  notify:
+    - Restart LanceDB search service
+    - Restart LanceDB gRPC search service
 
 - name: Create the service configuration directory
   ansible.builtin.file:
@@ -267,7 +269,25 @@
     owner: root
     group: "{{ lancedb_service_group }}"
     mode: '0640'
-  notify: Restart LanceDB search service
+  notify:
+    - Restart LanceDB search service
+    - Restart LanceDB gRPC search service
+
+- name: Install the gRPC search service
+  ansible.builtin.template:
+    src: lancedb-grpc-search.service.j2
+    dest: /etc/systemd/system/lancedb-grpc-search.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Enable and start the gRPC search service
+  ansible.builtin.systemd_service:
+    name: lancedb-grpc-search.service
+    enabled: true
+    state: started
+    daemon_reload: true
 
 - name: Render source-routing registry
   ansible.builtin.copy:
